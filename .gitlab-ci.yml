@@ -50,6 +50,7 @@ npm:
   before_script:
     - npm config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
   script:
+    - npm ci
     - npm publish --access public
 
 docker:
