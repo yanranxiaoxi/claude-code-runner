@@ -1,0 +1,10 @@
+/.vscode/*
+!/.vscode/extensions.json
+!/.vscode/settings.json
+/dist/
+/logs/
+/node_modules/
+/.env
+/claude-run.config.json
+.eslintcache
+debug.log

@@ -1,93 +1,557 @@
-# Claude-Code-Runner
+# Claude Code Runner
 
+> [!WARNING]
+>
+> - This work is alpha and might have security issues, use at your own risk.
+> - Email [admin@soraharu.com](mailto:admin@soraharu.com) for inquiries.
 
+Run Claude Code as an autonomous agent inside Docker containers with automatic GitHub integration. Bypass all permissions safely.
 
-## Getting started
+## Why Claude Code Runner?
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+The primary goal of Claude Code Runner is to enable **full async agentic workflows** by allowing Claude Code to execute without permission prompts. By running Claude in an isolated Docker container with the `--dangerously-skip-permissions` flag, Claude can:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- Execute any command instantly without asking for permission
+- Make code changes autonomously
+- Run build tools, tests, and development servers
+- Create commits and manage git operations
+- Work continuously without interrupting the user
 
-## Add your files
+Access Claude through a **browser-based terminal** that lets you monitor and interact with the AI assistant while you work on other tasks. This creates a truly autonomous development assistant, similar to [OpenAI Codex](https://chatgpt.com/codex) or [Google Jules](https://jules.dev), but running locally on your machine with full control.
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Overview
 
-```
-cd existing_repo
-git remote add origin https://gitlab.soraharu.com/XiaoXi/claude-code-runner.git
-git branch -M main
-git push -uf origin main
-```
+Claude Code Runner allows you to run Claude Code in isolated Docker containers, providing a safe environment for AI-assisted development. It automatically:
 
-## Integrate with your tools
-
-* [Set up project integrations](https://gitlab.soraharu.com/XiaoXi/claude-code-runner/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- Creates a new git branch for each session
+- Monitors for commits made by Claude
+- Provides interactive review of changes
+- Handles credential forwarding securely
+- Enables push/PR creation workflows
+- Runs custom setup commands for environment initialization
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+Install Claude Code Runner globally from npm:
+
+```bash
+npm install -g @yanranxiaoxi/claude-code-runner
+```
+
+### Prerequisites
+
+- Node.js >= 22.13.0
+- Docker or Podman
+- Git
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Quick Start
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+> **Tip**: For the fastest setup with pre-built image, use the official image by setting `buildImage: false` and `dockerImage: registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest` in your config.
+
+Simply run in any git repository:
+
+```bash
+claude-run
+```
+
+This will:
+
+1. Create a new branch (`claude/[timestamp]`)
+2. Start a Docker container with Claude Code
+3. Launch a web UI at `http://localhost:3456`
+4. Open your browser automatically
+
+### Commands
+
+#### `claude-run` (default)
+
+Start a new container with web UI (recommended):
+
+```bash
+claude-run
+```
+
+#### `claude-run start`
+
+Explicitly start a new container with options:
+
+```bash
+claude-run start [options]
+
+Options:
+  -c, --config <path>    Configuration file (default: ./claude-run.config.json)
+  -n, --name <name>      Container name prefix
+  --no-web               Disable web UI (use terminal attach)
+  --no-push              Disable automatic branch pushing
+  --no-pr                Disable automatic PR creation
+```
+
+#### `claude-run attach [container-id]`
+
+Attach to an existing container:
+
+```bash
+# Interactive selection
+claude-run attach
+
+# Specific container
+claude-run attach abc123def456
+
+Options:
+  --no-web               Use terminal attach instead of web UI
+```
+
+#### `claude-run list`
+
+List all Claude Runner containers:
+
+```bash
+claude-run list
+claude-run ls        # alias
+
+Options:
+  -a, --all              Show all containers (including stopped)
+```
+
+#### `claude-run stop [container-id]`
+
+Stop containers:
+
+```bash
+# Interactive selection
+claude-run stop
+
+# Specific container
+claude-run stop abc123def456
+
+# Stop all
+claude-run stop --all
+```
+
+#### `claude-run logs [container-id]`
+
+View container logs:
+
+```bash
+claude-run logs
+claude-run logs abc123def456
+
+Options:
+  -f, --follow           Follow log output
+  -n, --tail <lines>     Number of lines to show (default: 50)
+```
+
+#### `claude-run clean`
+
+Remove stopped containers:
+
+```bash
+claude-run clean
+claude-run clean --force  # Remove all containers
+```
+
+#### `claude-run config`
+
+Show current configuration:
+
+```bash
+claude-run config
+```
+
+### Configuration
+
+Create a `claude-run.config.json` file (see `claude-run.config.example.json` for reference):
+
+```json
+{
+	"dockerImage": "claude-code-runner:latest",
+	"dockerfile": "./custom.Dockerfile",
+	"detached": false,
+	"autoPush": true,
+	"autoCreatePR": true,
+	"autoStartClaude": true,
+	"envFile": ".env",
+	"environment": {
+		"NODE_ENV": "development"
+	},
+	"setupCommands": ["npm install", "npm run build"],
+	"volumes": ["/host/path:/container/path:ro"],
+	"mounts": [
+		{
+			"source": "./data",
+			"target": "/workspace/data",
+			"readonly": false
+		},
+		{
+			"source": "/home/user/configs",
+			"target": "/configs",
+			"readonly": true
+		}
+	],
+	"allowedTools": ["*"],
+	"maxThinkingTokens": 100000,
+	"bashTimeout": 600000,
+	"containerPrefix": "my-project",
+	"claudeConfigPath": "~/.claude.json"
+}
+```
+
+#### Configuration Options
+
+- `dockerImage`: Base Docker image to use (default: `claude-code-runner:latest`)
+- `buildImage`: Build the image locally (default: true) or pull from registry (set to false)
+- `dockerfile`: Path to custom Dockerfile (optional)
+- `detached`: Run container in detached mode
+- `autoPush`: Automatically push branches after commits
+- `autoCreatePR`: Automatically create pull requests
+- `autoStartClaude`: Start Claude Code automatically (default: true)
+- `envFile`: Load environment variables from file (e.g., `.env`)
+- `environment`: Additional environment variables
+- `setupCommands`: Commands to run after container starts (e.g., install dependencies)
+- `volumes`: Legacy volume mounts (string format)
+- `mounts`: Modern mount configuration (object format)
+- `allowedTools`: Claude tool permissions (default: all)
+- `maxThinkingTokens`: Maximum thinking tokens for Claude
+- `bashTimeout`: Timeout for bash commands in milliseconds
+- `containerPrefix`: Custom prefix for container names
+- `claudeConfigPath`: Path to Claude configuration file
+- `dockerSocketPath`: Custom Docker/Podman socket path (auto-detected by default)
+
+#### Mount Configuration
+
+The `mounts` array allows you to mount files or directories into the container:
+
+- `source`: Path on the host (relative paths are resolved from current directory)
+- `target`: Path in the container (relative paths are resolved from /workspace)
+- `readonly`: Optional boolean to make the mount read-only (default: false)
+
+Example use cases:
+
+- Mount data directories that shouldn't be in git
+- Share configuration files between host and container
+- Mount build artifacts or dependencies
+- Access host system resources (use with caution)
+
+#### Using Pre-built Container Images
+
+By default, Claude Code Runner builds the Docker image locally. If you prefer to pull a pre-built image from a registry instead:
+
+**Option 1: Use the Official Pre-built Image (Recommended)**
+
+The easiest way is to use the official maintained image. Just set `buildImage: false`:
+
+```json
+{
+	"buildImage": false
+}
+```
+
+The official image `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest` will be used automatically.
+
+Then run:
+
+```bash
+claude-run
+```
+
+The official image is:
+- ✅ Regularly maintained and updated
+- ✅ Pre-configured and tested
+- ✅ Ready to use out of the box
+- ✅ Faster startup time
+- ✅ No need to specify the full image URL
+
+**Option 2: Use Your Own Custom Image**
+
+If you maintain your own image in a registry:
+
+```json
+{
+	"dockerImage": "myregistry.com/claude-code-runner:latest",
+	"buildImage": false
+}
+```
+
+**Option 3: Build Locally (Default)**
+
+Build the image from the Dockerfile in your repository:
+
+```json
+{
+	"dockerImage": "claude-code-runner:latest",
+	"buildImage": true
+}
+```
+
+This is useful for:
+
+- **Development**: Customizing the image locally
+- **Team workflows**: Building consistent environments
+- **CI/CD pipelines**: Generating custom versions
+
+## Features
+
+### Podman Support
+
+Claude Code Runner now supports Podman as an alternative to Docker. The tool automatically detects whether you're using Docker or Podman by checking for available socket paths:
+
+- **Automatic detection**: The tool checks for Docker and Podman sockets in standard locations
+- **Custom socket paths**: Use the `dockerSocketPath` configuration option to specify a custom socket
+- **Environment variable**: Set `DOCKER_HOST` to override socket detection
+
+> **Important**: If you're using Podman in rootless mode, you need to enable the Podman socket service:
+>
+> ```bash
+> systemctl --user enable --now podman.socket
+> ```
+>
+> Verify the socket is running:
+>
+> ```bash
+> systemctl --user status podman.socket
+> ```
+
+Example configuration for Podman:
+
+```json
+{
+	"dockerSocketPath": "/run/user/1000/podman/podman.sock"
+}
+```
+
+The tool will automatically detect and use Podman if:
+
+- Docker socket is not available
+- Podman socket is found at standard locations (`/run/podman/podman.sock` or `$XDG_RUNTIME_DIR/podman/podman.sock`)
+
+### Web UI Terminal
+
+Launch a browser-based terminal interface to interact with Claude Code:
+
+```bash
+claude-run --web
+```
+
+This will:
+
+- Start the container in detached mode
+- Launch a web server on `http://localhost:3456`
+- Open your browser automatically
+- Provide a full terminal interface with:
+  - Real-time terminal streaming
+  - Copy/paste support
+  - Terminal resizing
+  - Reconnection capabilities
+
+Perfect for when you want to monitor Claude's work while doing other tasks.
+
+### Automatic Credential Discovery
+
+Claude Code Runner automatically discovers and forwards:
+
+**Claude Credentials:**
+
+- Anthropic API keys (`ANTHROPIC_API_KEY`)
+- macOS Keychain credentials (Claude Code)
+- AWS Bedrock credentials
+- Google Vertex credentials
+- Claude configuration files (`.claude.json`, `.claude/`)
+
+**GitHub Credentials:**
+
+- GitHub CLI authentication (`gh auth`)
+- GitHub tokens (`GITHUB_TOKEN`, `GH_TOKEN`)
+- Git configuration (`.gitconfig`)
+
+### Sandboxed Execution
+
+- Claude runs with `--dangerously-skip-permissions` flag (safe in container)
+- Creates isolated branch for each session
+- Full access to run any command within the container
+- Files are copied into container (not mounted) for true isolation
+- Git history preserved for proper version control
+
+### Commit Monitoring
+
+When Claude makes a commit:
+
+1. Real-time notification appears
+2. Full diff is displayed with syntax highlighting
+3. Interactive menu offers options:
+   - Continue working
+   - Push branch to remote
+   - Push branch and create PR
+   - Exit
+
+### Working with Multiple Containers
+
+Run multiple Claude instances simultaneously:
+
+```bash
+# Terminal 1: Start main development
+claude-run start --name main-dev
+
+# Terminal 2: Start feature branch work
+claude-run start --name feature-auth
+
+# Terminal 3: List all running containers
+claude-run list
+
+# Terminal 4: Attach to any container
+claude-run attach
+```
+
+## Docker Environment
+
+### Default Image
+
+The default Docker image includes:
+
+- Ubuntu 22.04
+- Git, GitHub CLI
+- Node.js, npm
+- Python 3
+- Claude Code (latest)
+- Build essentials
+
+### Custom Dockerfile
+
+Create a custom environment:
+
+```dockerfile
+FROM claude-code-runner:latest
+
+# Add your tools
+RUN apt-get update && apt-get install -y \
+    rust \
+    cargo \
+    postgresql-client
+
+# Install project dependencies
+COPY package.json /tmp/
+RUN cd /tmp && npm install
+
+# Custom configuration
+ENV CUSTOM_VAR=value
+```
+
+Reference in config:
+
+```json
+{
+	"dockerfile": "./my-custom.Dockerfile"
+}
+```
+
+## Workflow Example
+
+1. **Start Claude Runner:**
+
+   ```bash
+   cd my-project
+   claude-run
+   ```
+
+2. **Interact with Claude:**
+
+   ```
+   > Help me refactor the authentication module to use JWT tokens
+   ```
+
+3. **Claude works autonomously:**
+
+   - Explores codebase
+   - Makes changes
+   - Runs tests
+   - Commits changes
+
+4. **Review and push:**
+   - See commit notification
+   - Review syntax-highlighted diff
+   - Choose to push and create PR
+
+## Security Considerations
+
+- Credentials are mounted read-only
+- Containers are isolated from host
+- Branch restrictions prevent accidental main branch modifications
+- All changes require explicit user approval before pushing
+
+## Troubleshooting
+
+### Docker permission issues
+
+Add your user to the docker group:
+
+```bash
+sudo usermod -aG docker $USER
+# Log out and back in for changes to take effect
+```
+
+### Container cleanup
+
+Remove all Claude Runner containers and images:
+
+```bash
+npm run purge-containers
+```
+
+### Credential discovery fails
+
+Set credentials explicitly:
+
+```bash
+export ANTHROPIC_API_KEY=your-key
+export GITHUB_TOKEN=your-token
+```
+
+Or use an `.env` file with `envFile` config option.
+
+### Build errors
+
+Ensure you're using Node.js >= 22.13.0:
+
+```bash
+node --version
+```
+
+## Development
+
+### Building from Source
+
+To build and develop Claude Code Runner from source:
+
+```bash
+git clone https://gitlab.soraharu.com/XiaoXi/claude-code-runner.git
+cd claude-code-runner
+npm install
+npm run build
+npm link  # Creates global 'claude-run' command
+```
+
+### Available Scripts
+
+- `npm run build` - Build TypeScript to JavaScript
+- `npm run dev` - Watch mode for development
+- `npm start` - Build and run the CLI
+- `npm run lint` - Run ESLint
+- `npm run fix` - Run ESLint and fix formatting errors
+- `npm run purge-containers` - Clean up all containers
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run linter: `npm run lint`
+5. Submit a pull request
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Acknowledgments
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+[claude-code-sandbox](https://github.com/textcortex/claude-code-sandbox)
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT
