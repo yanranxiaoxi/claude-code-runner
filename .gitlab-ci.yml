@@ -1,0 +1,91 @@
+stages:
+  - test
+  - build
+  - publish
+
+# #######################
+#         test          #
+# #######################
+
+lint:
+  stage: test
+  tags:
+    - linux
+    - docker
+  image: docker.io/library/node:24
+  script:
+    - npm ci
+    - npm run lint
+
+# #######################
+#         build         #
+# #######################
+
+npm-build:
+  stage: build
+  tags:
+    - linux
+    - docker
+  image: docker.io/library/node:24
+  script:
+    - npm ci
+    - npm run build
+  artifacts:
+    name: dist
+    paths:
+      - ./dist/
+
+# #######################
+#        publish        #
+# #######################
+
+npm:
+  stage: publish
+  tags:
+    - linux
+    - docker
+  image: docker.io/library/node:24
+  rules:
+    - if: $CI_COMMIT_TAG
+  before_script:
+    - npm config set '//registry.npmjs.org/:_authToken' "$NPM_TOKEN"
+  script:
+    - npm publish --access public
+
+docker:
+  stage: publish
+  tags:
+    - linux
+    - docker
+    - amd64
+    - mpc
+  image: docker.io/library/docker:cli
+  services:
+    - name: docker.io/library/docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ''
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_TAG
+  before_script:
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USER" --password-stdin docker.io
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - cd ./docker/
+    # 解包并构建
+    - docker build --pull --provenance=false -t "$CI_PROJECT_NAME:$CI_COMMIT_TAG" .
+    - docker tag $CI_PROJECT_NAME:$CI_COMMIT_TAG $CI_PROJECT_NAME:latest
+    # 为 Docker Hub 打远程仓库标签
+    - docker tag $CI_PROJECT_NAME:$CI_COMMIT_TAG docker.io/$DOCKERHUB_USER/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+    - docker tag $CI_PROJECT_NAME:latest docker.io/$DOCKERHUB_USER/$CI_PROJECT_NAME:latest
+    # 为私有仓库打远程仓库标签
+    - docker tag $CI_PROJECT_NAME:$CI_COMMIT_TAG $CI_REGISTRY/xiaoxi/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+    - docker tag $CI_PROJECT_NAME:latest $CI_REGISTRY/xiaoxi/$CI_PROJECT_NAME:latest
+    # 推送 Docker Hub
+    - docker push docker.io/$DOCKERHUB_USER/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+    - docker push docker.io/$DOCKERHUB_USER/$CI_PROJECT_NAME:latest
+    # 推送私有仓库
+    - docker push $CI_REGISTRY/xiaoxi/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+    - docker push $CI_REGISTRY/xiaoxi/$CI_PROJECT_NAME:latest

@@ -1,0 +1,28 @@
+# Development
+/src/
+/scripts/
+/docker/
+/public/
+
+# Configuration
+/.vscode/
+/.claude.json
+/.gitlab-ci.yml
+/eslint.config.mjs
+/package-lock.json
+/tsconfig.json
+
+# Example configs
+/claude-run.config.*example.json
+
+# Documentation
+/CLAUDE.md
+
+# Git
+/.git
+/.gitignore
+
+# Other
+/node_modules/
+/dist/
+/.env
