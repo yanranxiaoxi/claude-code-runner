@@ -1,5 +1,5 @@
 {
-	"name": "@yanranxiaoxi/claude-code-runner",
+	"name": "claude-code-runner",
 	"version": "0.1.0",
 	"description": "Run Claude Code as an autonomous agent in Docker & Podman containers",
 	"author": "XiaoXi <admin@soraharu.com>",
