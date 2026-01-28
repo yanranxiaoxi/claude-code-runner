@@ -411,11 +411,11 @@ claude-run attach
 
 The default Docker image includes:
 
-- Ubuntu 22.04
+- AlmaLinux 10
 - Git, GitHub CLI
 - Node.js, npm
 - Python 3
-- Claude Code (latest)
+- Claude Code
 - Build essentials
 
 ### Custom Dockerfile

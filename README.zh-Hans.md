@@ -411,11 +411,11 @@ claude-run attach
 
 默认 Docker 镜像包含：
 
-- Ubuntu 22.04
+- AlmaLinux 10
 - Git、GitHub CLI
 - Node.js、npm
 - Python 3
-- Claude Code（最新版）
+- Claude Code
 - 构建必需工具
 
 ### 自定义 Dockerfile
