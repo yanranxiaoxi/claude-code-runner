@@ -1,5 +1,5 @@
 /* eslint-disable no-control-regex */
-/* global Terminal, FitAddon, WebLinksAddon, io */
+/* global Terminal, FitAddon, WebLinksAddon, io, I18n */
 
 // Terminal and Socket.IO setup
 let term;
@@ -187,13 +187,13 @@ function onIdleDetected() {
 			document.body.classList.add('input-needed');
 
 			// Update status bar
-			updateStatus('connected', '⚠️ Waiting for input');
+			updateStatus('connected', t('status.waitingForInput', '⚠️ Waiting for input'));
 
 			// Update page title
 			if (!originalPageTitle) {
-				originalPageTitle = document.title;
+				originalPageTitle = t('app.title', document.title);
 			}
-			document.title = `⚠️ Input needed - ${originalPageTitle}`;
+			document.title = `⚠️ ${t('messages.inputNeeded', 'Input needed')} - ${originalPageTitle}`;
 
 			// Trigger file sync
 			if (socket && containerId) {
@@ -597,14 +597,14 @@ async function fetchContainerList() {
 			});
 		}
 		else {
-			updateStatus('error', 'No containers found');
-			term.writeln('\x1B[1;31mNo Claude Code Runner containers found.\x1B[0m');
-			term.writeln('\x1B[90mPlease start a container first.\x1B[0m');
+			updateStatus('error', t('status.noContainersFound', 'No containers found'));
+			term.writeln(`\x1B[1;31m${t('messages.noContainersFoundMessage', 'No Claude Code Runner containers found.')}\x1B[0m`);
+			term.writeln(`\x1B[90m${t('messages.startContainerFirst', 'Please start a container first.')}\x1B[0m`);
 		}
 	}
 	catch (error) {
 		console.error('Failed to fetch containers:', error);
-		updateStatus('error', 'Failed to fetch containers');
+		updateStatus('error', t('status.failedToFetchContainers', 'Failed to fetch containers'));
 	}
 }
 
@@ -617,6 +617,14 @@ function updateStatus(status, text) {
 	statusText.textContent = text;
 }
 
+// Translate helper - returns translated text if I18n is ready, otherwise returns original
+function t(key, fallback) {
+	if (typeof I18n !== 'undefined' && I18n.ready()) {
+		return I18n.t(key);
+	}
+	return fallback || key;
+}
+
 // Control functions
 function clearTerminal() {
 	term.clear();
@@ -625,7 +633,7 @@ function clearTerminal() {
 function reconnect() {
 	if (socket && containerId) {
 		// Don't clear terminal - preserve existing content
-		term.writeln('\r\n\x1B[90mReconnecting...\x1B[0m');
+		term.writeln(`\r\n\x1B[90m${t('messages.reconnecting', 'Reconnecting...')}\x1B[0m`);
 
 		// Just emit attach again without disconnecting
 		// This will reattach to the existing session
@@ -645,7 +653,7 @@ function copySelection() {
 			.then(() => {
 				// Show temporary feedback
 				const originalText = document.getElementById('status-text').textContent;
-				updateStatus('connected', 'Copied to clipboard');
+				updateStatus('connected', t('status.copiedToClipboard', 'Copied to clipboard'));
 				setTimeout(() => {
 					updateStatus('connected', originalText);
 				}, 2000);
@@ -748,7 +756,14 @@ function updateGitInfo(data) {
 // Initialize everything when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
 	// Store original page title
-	originalPageTitle = document.title;
+	originalPageTitle = t('app.title', document.title);
+
+	window.addEventListener('languagechange', () => {
+		originalPageTitle = t('app.title', document.title);
+		if (document.body.classList.contains('input-needed')) {
+			document.title = `⚠️ ${t('messages.inputNeeded', 'Need Input')} - ${originalPageTitle}`;
+		}
+	});
 
 	initTerminal();
 	initSocket();
@@ -957,10 +972,14 @@ function clearChangesTab() {
 	// Clear changes content but keep the empty state
 	container.innerHTML = `
         <div class="empty-state" id="no-changes">
-            <h3>No changes detected</h3>
-            <p>Claude hasn't made any changes yet. Changes will appear here automatically when Claude modifies files.</p>
+            <h3 data-i18n="changes.noChangesTitle">${t('changes.noChangesTitle', 'No changes detected')}</h3>
+            <p data-i18n="changes.noChangesDescription">${t('changes.noChangesDescription', 'Claude hasn\'t made any changes yet. Changes will appear here automatically when Claude modifies files.')}</p>
         </div>
     `;
+
+	if (typeof I18n !== 'undefined' && I18n.ready()) {
+		I18n.updateDOM();
+	}
 
 	// Remove badge
 	updateChangesTabBadge(0);

@@ -1,0 +1,60 @@
+{
+	"app": {
+		"title": "Claude Code Runner - Terminal",
+		"name": "Claude Code Runner"
+	},
+	"header": {
+		"loading": "loading...",
+		"connecting": "Connecting..."
+	},
+	"tabs": {
+		"terminal": "Terminal",
+		"changes": "Changes"
+	},
+	"terminal": {
+		"connectingToContainer": "Connecting to container...",
+		"clear": "Clear",
+		"reconnect": "Reconnect",
+		"copySelection": "Copy Selection",
+		"soundNotifications": "Sound notifications",
+		"shortcuts": "Ctrl+C: Interrupt | Ctrl+D: Exit | Ctrl+L: Clear",
+		"welcome": "Welcome to Claude Code Runner Terminal"
+	},
+	"changes": {
+		"noChangesTitle": "No changes detected",
+		"noChangesDescription": "Claude hasn't made any changes yet. Changes will appear here automatically when Claude modifies files."
+	},
+	"status": {
+		"connected": "Connected",
+		"connecting": "Connecting...",
+		"attachingToContainer": "Attaching to container...",
+		"connectedTo": "Connected to {{containerId}}",
+		"disconnected": "Disconnected",
+		"disconnectedFromServer": "Disconnected from server",
+		"containerDisconnected": "Container disconnected",
+		"error": "Error",
+		"waitingForInput": "⚠️ Waiting for input",
+		"copiedToClipboard": "Copied to clipboard",
+		"noContainersFound": "No containers found",
+		"failedToFetchContainers": "Failed to fetch containers",
+		"syncFailed": "Sync failed: {{message}}",
+		"commitSuccess": "✓ Changes committed successfully",
+		"commitFailed": "Commit failed: {{message}}",
+		"pushSuccess": "✓ Changes pushed to remote {{branch}}"
+	},
+	"messages": {
+		"reconnecting": "Reconnecting...",
+		"noContainersFoundMessage": "No Claude Code Runner containers found.",
+		"startContainerFirst": "Please start a container first.",
+		"connectionClosed": "Connection closed",
+		"connectionError": "Connection error",
+		"serverConnectionLost": "Server connection lost. Click \"Reconnect\" to retry.",
+		"containerConnectionLost": "Container connection lost. Click \"Reconnect\" to retry.",
+		"inputNeeded": "Input needed"
+	},
+	"language": {
+		"label": "Language",
+		"en": "English",
+		"zh-CN": "简体中文"
+	}
+}

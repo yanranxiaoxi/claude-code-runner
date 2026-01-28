@@ -1,0 +1,60 @@
+{
+	"app": {
+		"title": "Claude Code Runner - 终端",
+		"name": "Claude Code Runner"
+	},
+	"header": {
+		"loading": "加载中...",
+		"connecting": "连接中..."
+	},
+	"tabs": {
+		"terminal": "终端",
+		"changes": "更改"
+	},
+	"terminal": {
+		"connectingToContainer": "正在连接到容器...",
+		"clear": "清屏",
+		"reconnect": "重新连接",
+		"copySelection": "复制选中",
+		"soundNotifications": "声音通知",
+		"shortcuts": "Ctrl+C: 中断 | Ctrl+D: 退出 | Ctrl+L: 清屏",
+		"welcome": "欢迎使用 Claude Code Runner 终端"
+	},
+	"changes": {
+		"noChangesTitle": "未检测到更改",
+		"noChangesDescription": "Claude 尚未进行任何更改。当 Claude 修改文件时，更改将自动显示在此处。"
+	},
+	"status": {
+		"connected": "已连接",
+		"connecting": "连接中...",
+		"attachingToContainer": "正在连接到容器...",
+		"connectedTo": "已连接到 {{containerId}}",
+		"disconnected": "已断开",
+		"disconnectedFromServer": "与服务器断开连接",
+		"containerDisconnected": "容器已断开连接",
+		"error": "错误",
+		"waitingForInput": "⚠️ 等待输入",
+		"copiedToClipboard": "已复制到剪贴板",
+		"noContainersFound": "未找到容器",
+		"failedToFetchContainers": "获取容器失败",
+		"syncFailed": "同步失败: {{message}}",
+		"commitSuccess": "✓ 更改已成功提交",
+		"commitFailed": "提交失败: {{message}}",
+		"pushSuccess": "✓ 更改已推送到远程分支 {{branch}}"
+	},
+	"messages": {
+		"reconnecting": "正在重新连接...",
+		"noContainersFoundMessage": "未找到 Claude Code Runner 容器。",
+		"startContainerFirst": "请先启动一个容器。",
+		"connectionClosed": "连接已关闭",
+		"connectionError": "连接错误",
+		"serverConnectionLost": "与服务器的连接已断开。点击「重新连接」重试。",
+		"containerConnectionLost": "与容器的连接已断开。点击「重新连接」重试。",
+		"inputNeeded": "需要输入"
+	},
+	"language": {
+		"label": "语言",
+		"en": "English",
+		"zh-CN": "简体中文"
+	}
+}
