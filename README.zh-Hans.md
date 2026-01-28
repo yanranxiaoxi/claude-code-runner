@@ -16,7 +16,7 @@ Claude Code Runner 的主要目标是通过允许 Claude Code 在没有权限提
 - 无需请求权限即可立即执行任何命令
 - 自主进行代码更改
 - 运行构建工具、测试和开发服务器
-- 创建提交并管理 git 操作
+- 创建提交并管理 Git 操作
 - 在不打断用户的情况下持续工作
 
 通过 **基于浏览器的终端** 访问 Claude，让你可以在处理其他任务的同时监控 AI 助手并与之交互。这创建了一个真正自主的开发助手，类似于 [OpenAI Codex](https://chatgpt.com/codex) 或 [Google Jules](https://jules.dev)，但在你的本地机器上运行，并且完全可控。
@@ -25,7 +25,7 @@ Claude Code Runner 的主要目标是通过允许 Claude Code 在没有权限提
 
 Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code，为 AI 辅助开发提供安全的环境。它会自动：
 
-- 为每个会话创建新的 git 分支
+- 为每个会话创建新的 Git 分支
 - 监控 Claude 所做的提交
 - 提供交互式的更改审查
 - 安全地转发凭证
