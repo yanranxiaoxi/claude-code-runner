@@ -48,34 +48,63 @@ function purgeContainers() {
 	try {
 		// Find and remove containers based on image
 		console.log('🧹 Removing claude-code-runner containers...');
-		const listCmd = `${runtime} ps -a --filter "ancestor=claude-code-runner:latest" -q`;
+
+		// Also find containers by name pattern
+		const listByImageCmd = `${runtime} ps -a --filter "ancestor=claude-code-runner:latest" -q`;
+		const listByNameCmd = `${runtime} ps -a --filter "name=claude-code-runner" -q`;
+
+		const allContainerIds = new Set();
 
 		try {
-			const containerIds = execSync(listCmd, { encoding: 'utf-8', stdio: 'pipe' }).trim();
-			if (containerIds) {
-				const removeCmd = `${runtime} rm -f ${containerIds}`;
-				execSync(removeCmd, { stdio: 'inherit' });
-				console.log('✅ Containers removed');
-			}
-			else {
-				console.log('ℹ️  No containers found');
+			const byImage = execSync(listByImageCmd, { encoding: 'utf-8', stdio: 'pipe' }).trim();
+			if (byImage) {
+				byImage.split('\n').filter(id => id.trim()).forEach(id => allContainerIds.add(id.trim()));
 			}
 		}
 		catch (error) {
-			// No containers found or command failed, continue
+			// Ignore errors
+		}
+
+		try {
+			const byName = execSync(listByNameCmd, { encoding: 'utf-8', stdio: 'pipe' }).trim();
+			if (byName) {
+				byName.split('\n').filter(id => id.trim()).forEach(id => allContainerIds.add(id.trim()));
+			}
+		}
+		catch (error) {
+			// Ignore errors
+		}
+
+		if (allContainerIds.size > 0) {
+			const containerList = Array.from(allContainerIds);
+			console.log(`Found ${containerList.length} container(s) to remove`);
+
+			// Remove containers one by one to avoid shell parsing issues
+			for (const containerId of containerList) {
+				try {
+					const removeCmd = `${runtime} rm -f ${containerId}`;
+					execSync(removeCmd, { stdio: 'inherit' });
+				}
+				catch (error) {
+					console.log(`⚠️  Failed to remove container ${containerId}`);
+				}
+			}
+			console.log('✅ Containers removed');
+		}
+		else {
 			console.log('ℹ️  No containers found');
 		}
 
 		// Remove image
 		console.log('🗑️  Removing claude-code-runner image...');
 		try {
-			const rmiCmd = `${runtime} rmi claude-code-runner:latest`;
+			const rmiCmd = `${runtime} rmi -f claude-code-runner:latest`;
 			execSync(rmiCmd, { stdio: 'inherit' });
 			console.log('✅ Image removed');
 		}
 		catch (error) {
-			// Image might not exist or be in use
-			console.log('ℹ️  Image not found or in use');
+			// Image might not exist
+			console.log('ℹ️  Image not found');
 		}
 
 		console.log('\n✨ Cleanup complete!');
