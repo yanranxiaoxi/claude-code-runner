@@ -82,23 +82,49 @@ export class WebUIServer {
 				let currentBranch = 'loading...';
 				const workingDir = this.originalRepo || process.cwd();
 
-				// If containerId is provided, try to get branch from shadow repo
-				if (containerId && this.shadowRepos.has(containerId)) {
-					const shadowRepo = this.shadowRepos.get(containerId)!;
-					const shadowPath = shadowRepo.getPath();
-					if (shadowPath) {
-						try {
-							const branchResult = await execAsync(
-								'git rev-parse --abbrev-ref HEAD',
-								{
-									cwd: shadowPath,
-								},
-							);
-							currentBranch = branchResult.stdout.trim();
-							// Use original repo for PR lookup (PRs are created against the main repo)
+				// If containerId is provided, try to get branch directly from container first
+				if (containerId) {
+					try {
+						// Get branch directly from the container - this is the most accurate source
+						const branchResult = await execAsync(
+							`${this.containerCmd} exec ${containerId} git -C /workspace rev-parse --abbrev-ref HEAD`,
+						);
+						currentBranch = branchResult.stdout.trim();
+					}
+					catch (containerError) {
+						// Container might not be ready, fall back to shadow repo or original repo
+						if (this.shadowRepos.has(containerId)) {
+							const shadowRepo = this.shadowRepos.get(containerId)!;
+							const shadowPath = shadowRepo.getPath();
+							if (shadowPath) {
+								try {
+									const branchResult = await execAsync(
+										'git rev-parse --abbrev-ref HEAD',
+										{
+											cwd: shadowPath,
+										},
+									);
+									currentBranch = branchResult.stdout.trim();
+								}
+								catch (error) {
+									// Shadow repo might not be fully initialized yet, fall back to original repo
+									try {
+										const branchResult = await execAsync(
+											'git rev-parse --abbrev-ref HEAD',
+											{
+												cwd: workingDir,
+											},
+										);
+										currentBranch = branchResult.stdout.trim();
+									}
+									catch (fallbackError) {
+										// Keep default "loading..."
+									}
+								}
+							}
 						}
-						catch (error) {
-							// Shadow repo might not be fully initialized yet, fall back to original repo
+						else {
+							// No shadow repo, fall back to original repo
 							try {
 								const branchResult = await execAsync(
 									'git rev-parse --abbrev-ref HEAD',
@@ -115,7 +141,7 @@ export class WebUIServer {
 					}
 				}
 				else {
-					// Fallback to original repo
+					// No container ID, use original repo
 					try {
 						const branchResult = await execAsync(
 							'git rev-parse --abbrev-ref HEAD',
