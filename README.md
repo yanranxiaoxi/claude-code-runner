@@ -169,6 +169,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 ```json
 {
 	"dockerImage": "claude-code-runner:latest",
+	"buildImage": true,
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
