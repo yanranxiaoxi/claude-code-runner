@@ -37,7 +37,7 @@ Claude Code Runner allows you to run Claude Code in isolated Docker containers, 
 Install Claude Code Runner globally from npm:
 
 ```bash
-npm install -g @yanranxiaoxi/claude-code-runner
+npm install -g claude-code-runner
 ```
 
 ### Prerequisites

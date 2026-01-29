@@ -37,7 +37,7 @@ Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code，�
 从 npm 全局安装 Claude Code Runner：
 
 ```bash
-npm install -g @yanranxiaoxi/claude-code-runner
+npm install -g claude-code-runner
 ```
 
 ### 前置要求
