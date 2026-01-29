@@ -43,11 +43,17 @@ RUN useradd -m -s /bin/bash claude && \
     echo 'claude ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
     usermod -aG wheel claude
 
+# Switch to claude user to install Claude Code
+USER claude
+
 # Install Claude Code for claude user
-RUN sudo -u claude bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Ensure claude is in PATH for claude user
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc
+
+# Switch back to root for remaining setup
+USER root
 
 # Create workspace directory and set ownership
 RUN mkdir -p /workspace && \
