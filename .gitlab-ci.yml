@@ -60,6 +60,7 @@ docker:
     - docker
     - amd64
     - mpc
+    - ai-access-region
   image: docker.io/library/docker:cli
   services:
     - name: docker.io/library/docker:dind
