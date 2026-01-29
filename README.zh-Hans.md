@@ -50,7 +50,7 @@ npm install -g claude-code-runner
 
 ### 快速开始
 
-> **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false` 和 `dockerImage: registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`。
+> **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false`。默认镜像（`ghcr.io/yanranxiaoxi/claude-code-runner:latest`）会自动使用。
 
 只需在任何 Git 仓库文件夹中运行：
 
@@ -251,7 +251,7 @@ claude-run config
 }
 ```
 
-官方镜像 `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest` 会自动使用。
+官方镜像 `ghcr.io/yanranxiaoxi/claude-code-runner:latest` 会自动使用。
 
 然后运行：
 
@@ -261,22 +261,22 @@ claude-run
 
 **可用的官方镜像：**
 
-- **GitLab 镜像仓库**（默认）：`registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
-- **GitHub 容器镜像仓库**：`ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+- **GitHub 容器镜像仓库**（默认）：`ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+- **GitLab 镜像仓库**：`registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
 
 两个镜像都具有以下优势：
 - ✅ 定期维护和更新
 - ✅ 已预配置并测试
 - ✅ 开箱即用
 - ✅ 启动速度更快
-- ✅ 使用 GitLab 镜像仓库时无需指定完整的镜像 URL
+- ✅ 使用默认镜像（GitHub 容器镜像仓库）时无需指定完整的镜像 URL
 
-要使用 GitHub 容器镜像仓库：
+要使用 GitLab 镜像仓库：
 
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "ghcr.io/yanranxiaoxi/claude-code-runner:latest"
+	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest"
 }
 ```
 

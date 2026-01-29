@@ -50,7 +50,7 @@ npm install -g claude-code-runner
 
 ### Quick Start
 
-> **Tip**: For the fastest setup with pre-built image, use the official image by setting `buildImage: false` and `dockerImage: registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest` in your config.
+> **Tip**: For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image (`ghcr.io/yanranxiaoxi/claude-code-runner:latest`) will be used automatically.
 
 Simply run in any git repository:
 
@@ -251,7 +251,7 @@ The easiest way is to use the official maintained image. Just set `buildImage: f
 }
 ```
 
-The official image `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest` will be used automatically.
+The official image `ghcr.io/yanranxiaoxi/claude-code-runner:latest` will be used automatically.
 
 Then run:
 
@@ -261,22 +261,22 @@ claude-run
 
 **Available Official Images:**
 
-- **GitLab Registry** (Default): `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
-- **GitHub Container Registry**: `ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+- **GitHub Container Registry** (Default): `ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+- **GitLab Registry**: `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
 
 Both images are:
 - ✅ Regularly maintained and updated
 - ✅ Pre-configured and tested
 - ✅ Ready to use out of the box
 - ✅ Faster startup time
-- ✅ No need to specify the full image URL when using GitLab Registry
+- ✅ No need to specify the full image URL when using the default (GitHub Container Registry)
 
-To use GitHub Container Registry instead:
+To use GitLab Registry instead:
 
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "ghcr.io/yanranxiaoxi/claude-code-runner:latest"
+	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest"
 }
 ```
 

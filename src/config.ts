@@ -32,7 +32,7 @@ export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 
 		// If buildImage is false and dockerImage wasn't explicitly set, use official image
 		if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
-			finalConfig.dockerImage = 'registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest';
+			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:latest';
 		}
 
 		return finalConfig;
