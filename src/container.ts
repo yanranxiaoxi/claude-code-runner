@@ -31,6 +31,18 @@ export class ContainerManager {
 		await container.start();
 		console.log(chalk.green('✓ Container started'));
 
+		// Wait a moment for container to stabilize
+		await new Promise(resolve => setTimeout(resolve, 500));
+
+		// Verify container is still running
+		const containerInfo = await container.inspect();
+		if (!containerInfo.State.Running) {
+			console.error(chalk.red('✗ Container exited unexpectedly'));
+			const logs = await container.logs({ stdout: true, stderr: true, tail: 50 });
+			console.error(chalk.yellow('Container logs:'), logs.toString());
+			throw new Error('Container exited immediately after start');
+		}
+
 		// Copy working directory into container
 		console.log(chalk.blue('• Copying files into container...'));
 		try {
