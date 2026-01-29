@@ -1,14 +1,82 @@
 #!/usr/bin/env node
+import https from 'node:https';
 import process from 'node:process';
+
 import chalk from 'chalk';
 import { Command } from 'commander';
 import Docker from 'dockerode';
 import inquirer from 'inquirer';
 import ora from 'ora';
+import packageJson from '../package.json';
+
 import { loadConfig } from './config';
 import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-config';
 import { ClaudeSandbox } from './index';
 import { WebUIServer } from './web-server';
+
+// Read package.json for version
+const currentVersion = packageJson.version;
+const packageName = packageJson.name;
+
+// Check for updates (non-blocking)
+async function checkForUpdates(): Promise<void> {
+	return new Promise((resolve) => {
+		// Set a timeout to avoid blocking the CLI
+		const timeout = setTimeout(() => {
+			resolve();
+		}, 3000);
+
+		https.get(`https://registry.npmjs.org/${packageName}/latest`, (res) => {
+			let data = '';
+
+			res.on('data', (chunk) => {
+				data += chunk;
+			});
+
+			res.on('end', () => {
+				clearTimeout(timeout);
+				try {
+					const latest = JSON.parse(data);
+					const latestVersion = latest.version;
+
+					if (latestVersion && latestVersion !== currentVersion) {
+						// Compare versions
+						if (isNewerVersion(latestVersion, currentVersion)) {
+							console.log('');
+							console.log(chalk.yellow('┌─────────────────────────────────────────────────────────────┐'));
+							console.log(`${chalk.yellow('│')}  ${chalk.bold('Update available! ')}${chalk.dim(currentVersion)} → ${chalk.green(latestVersion)}` + `                 ${chalk.yellow('│')}`);
+							console.log(`${chalk.yellow('│')}  ${chalk.dim(`Run: ${chalk.cyan(`npm install -g ${packageName}`)}`)}              ${chalk.yellow('│')}`);
+							console.log(chalk.yellow('└─────────────────────────────────────────────────────────────┘'));
+							console.log('');
+						}
+					}
+					resolve();
+				}
+				catch (error) {
+					resolve();
+				}
+			});
+		}).on('error', () => {
+			clearTimeout(timeout);
+			resolve();
+		});
+	});
+}
+
+function isNewerVersion(latest: string, current: string): boolean {
+	const latestParts = latest.split('.').map(Number);
+	const currentParts = current.split('.').map(Number);
+
+	for (let i = 0; i < 3; i++) {
+		const l = latestParts[i] || 0;
+		const c = currentParts[i] || 0;
+		if (l > c)
+			return true;
+		if (l < c)
+			return false;
+	}
+	return false;
+}
 
 // Initialize Docker with config - will be updated after loading config if needed
 let dockerConfig = getDockerConfig();
@@ -88,7 +156,12 @@ async function selectContainer(containers: any[]): Promise<string | null> {
 program
 	.name('claude-run')
 	.description('Run Claude Code in isolated Docker containers')
-	.version('0.1.0');
+	.version(currentVersion);
+
+// Check for updates before running any command
+program.hook('preAction', async () => {
+	await checkForUpdates();
+});
 
 // Default command (always web UI)
 program
