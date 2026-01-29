@@ -4,6 +4,7 @@
 /docker/
 
 # Configuration
+/.github/
 /.vscode/
 /.claude.json
 /.gitlab-ci.yml
@@ -12,13 +13,13 @@
 /tsconfig.json
 
 # Example configs
-/claude-run.config.*example.json
+/claude-run.config*.json
 
 # Documentation
 /CLAUDE.md
 
 # Git
-/.git
+/.git/
 /.gitignore
 
 # Other
