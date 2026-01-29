@@ -104,8 +104,11 @@ async function purgeContainers() {
 	const containerPrefixes = new Set([config.containerPrefix]);
 
 	// Always include defaults in case user ran without config before
-	imageNames.add(DEFAULT_CONFIG.dockerImage);
 	containerPrefixes.add(DEFAULT_CONFIG.containerPrefix);
+	// Only add default image if no custom image is configured
+	if (!config.dockerImage || config.dockerImage === DEFAULT_CONFIG.dockerImage) {
+		imageNames.add(DEFAULT_CONFIG.dockerImage);
+	}
 
 	console.log(`🔍 Detected container runtime: ${runtime}`);
 	console.log(`📦 Images to clean: ${Array.from(imageNames).join(', ')}`);

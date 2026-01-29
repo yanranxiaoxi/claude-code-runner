@@ -506,7 +506,10 @@ program
 
 			// Always include defaults
 			containerPrefixes.add('claude-code-runner');
-			imageNames.add('claude-code-runner:latest');
+			// Only add default image if no custom image is configured
+			if (!config.dockerImage || config.dockerImage === 'claude-code-runner:latest') {
+				imageNames.add('claude-code-runner:latest');
+			}
 
 			const containers = await getClaudeSandboxContainers(containerPrefixes);
 
@@ -594,28 +597,33 @@ program
 				spinner.succeed(chalk.green(`✓ Removed ${removedContainers} container(s)`));
 			}
 
-			// Remove images
-			spinner.start('Removing images...');
-			let removedImages = 0;
+			// Remove images only if there are images to remove
+			if (imagesToRemove.size > 0) {
+				spinner.start('Removing images...');
+				let removedImages = 0;
 
-			for (const imageName of imagesToRemove) {
-				try {
-					const image = docker.getImage(imageName);
-					await image.remove({ force: true });
-					spinner.text = `Removed image: ${imageName}`;
-					removedImages++;
+				for (const imageName of imagesToRemove) {
+					try {
+						const image = docker.getImage(imageName);
+						await image.remove({ force: true });
+						spinner.text = `Removed image: ${imageName}`;
+						removedImages++;
+					}
+					catch (error: any) {
+						// Image might not exist or be in use
+						spinner.warn(`Image not found or in use: ${imageName}`);
+					}
 				}
-				catch (error: any) {
-					// Image might not exist or be in use
-					spinner.warn(`Image not found or in use: ${imageName}`);
+
+				if (removedImages > 0) {
+					spinner.succeed(chalk.green(`✓ Removed ${removedImages} image(s)`));
+				}
+				else {
+					spinner.info('No images were removed');
 				}
 			}
-
-			if (removedImages > 0) {
-				spinner.succeed(chalk.green(`✓ Removed ${removedImages} image(s)`));
-			}
-			else if (imagesToRemove.size > 0) {
-				spinner.info('No images were removed');
+			else {
+				spinner.info('No images to remove');
 			}
 
 			console.log(chalk.green('\n✨ Purge complete!'));
