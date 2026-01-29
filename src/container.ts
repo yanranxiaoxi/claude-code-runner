@@ -166,22 +166,27 @@ RUN dnf install -y epel-release && dnf install -y \
     rsync \\
     && dnf clean all
 
-# Install Node.js 24.x
-RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - \\
-    && dnf install -y nodejs
-
 # Install GitHub CLI
 RUN dnf install -y 'dnf-command(config-manager)' \\
     && dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo \\
     && dnf install -y gh
 
-# Install Claude Code
-RUN npm install -g @anthropic-ai/claude-code@latest
+# Install Claude Code using native installer
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Ensure claude is in PATH for all users
+ENV PATH="/root/.local/bin:\${PATH}"
 
 # Create a non-root user with sudo privileges
 RUN useradd -m -s /bin/bash claude && \\
     echo 'claude ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \\
     usermod -aG wheel claude
+
+# Install Claude Code for claude user
+RUN sudo -u claude bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
+
+# Ensure claude is in PATH for claude user
+RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc
 
 # Create workspace directory and set ownership
 RUN mkdir -p /workspace && \\
