@@ -7,16 +7,15 @@ import { Command } from 'commander';
 import Docker from 'dockerode';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import packageJson from '../package.json';
 
 import { loadConfig } from './config';
 import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-config';
 import { ClaudeSandbox } from './index';
 import { WebUIServer } from './web-server';
 
-// Read package.json for version
-const currentVersion = packageJson.version;
-const packageName = packageJson.name;
+// Package info - injected at build time
+const currentVersion = '__PACKAGE_VERSION__';
+const packageName = '__PACKAGE_NAME__';
 
 // Check for updates (non-blocking)
 async function checkForUpdates(): Promise<void> {

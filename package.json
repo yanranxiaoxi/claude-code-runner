@@ -30,7 +30,7 @@
 		"node": ">=22.13.0"
 	},
 	"scripts": {
-		"build": "rimraf dist && tsc",
+		"build": "rimraf dist && tsc && node scripts/inject-data.js",
 		"dev": "tsc --watch",
 		"start": "npm run build && node dist/cli.js",
 		"lint": "eslint",
