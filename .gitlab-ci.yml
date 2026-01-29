@@ -13,6 +13,10 @@ lint:
     - linux
     - docker
   image: docker.io/library/node:24
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: on_success
   script:
     - npm ci
     - npm run lint
