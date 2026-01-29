@@ -262,14 +262,24 @@ claude-run
 **Available Official Images:**
 
 - **GitHub Container Registry** (Default): `ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+- **Docker Hub**: `docker.io/yanranxiaoxi/claude-code-runner:latest`
 - **GitLab Registry**: `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
 
-Both images are:
+All images are:
 - ✅ Regularly maintained and updated
 - ✅ Pre-configured and tested
 - ✅ Ready to use out of the box
 - ✅ Faster startup time
 - ✅ No need to specify the full image URL when using the default (GitHub Container Registry)
+
+To use Docker Hub:
+
+```json
+{
+	"buildImage": false,
+	"dockerImage": "docker.io/yanranxiaoxi/claude-code-runner:latest"
+}
+```
 
 To use GitLab Registry instead:
 
