@@ -41,9 +41,15 @@ async function checkForUpdates(): Promise<void> {
 						// Compare versions
 						if (isNewerVersion(latestVersion, currentVersion)) {
 							console.log('');
+							const boxWidth = 59; // Total inner width (excluding border characters)
+							const line1Text = `Update available! ${currentVersion} → ${latestVersion}`;
+							const line1Padding = ' '.repeat(Math.max(0, boxWidth - 2 - line1Text.length));
+							const line2Text = 'Run: claude-run self-update';
+							const line2Padding = ' '.repeat(Math.max(0, boxWidth - 2 - line2Text.length));
+
 							console.log(chalk.yellow('┌─────────────────────────────────────────────────────────────┐'));
-							console.log(`${chalk.yellow('│')}  ${chalk.bold('Update available! ')}${chalk.dim(currentVersion)} → ${chalk.green(latestVersion)}` + `                 ${chalk.yellow('│')}`);
-							console.log(`${chalk.yellow('│')}  ${chalk.dim(`Run: ${chalk.cyan('claude-run self-update')}`)}                         ${chalk.yellow('│')}`);
+							console.log(`${chalk.yellow('│')}  ${chalk.bold('Update available!')} ${chalk.dim(currentVersion)} → ${chalk.green(latestVersion)}${line1Padding}${chalk.yellow('│')}`);
+							console.log(`${chalk.yellow('│')}  ${chalk.cyan('Run:')} ${chalk.bold('claude-run self-update')}${line2Padding}${chalk.yellow('│')}`);
 							console.log(chalk.yellow('└─────────────────────────────────────────────────────────────┘'));
 							console.log('');
 						}
