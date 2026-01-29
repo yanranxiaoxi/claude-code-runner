@@ -1,13 +1,12 @@
 #!/usr/bin/env node
+import { execSync } from 'node:child_process';
 import https from 'node:https';
 import process from 'node:process';
-
 import chalk from 'chalk';
 import { Command } from 'commander';
 import Docker from 'dockerode';
 import inquirer from 'inquirer';
 import ora from 'ora';
-
 import { loadConfig } from './config';
 import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-config';
 import { ClaudeSandbox } from './index';
@@ -44,7 +43,7 @@ async function checkForUpdates(): Promise<void> {
 							console.log('');
 							console.log(chalk.yellow('┌─────────────────────────────────────────────────────────────┐'));
 							console.log(`${chalk.yellow('│')}  ${chalk.bold('Update available! ')}${chalk.dim(currentVersion)} → ${chalk.green(latestVersion)}` + `                 ${chalk.yellow('│')}`);
-							console.log(`${chalk.yellow('│')}  ${chalk.dim(`Run: ${chalk.cyan(`npm install -g ${packageName}`)}`)}              ${chalk.yellow('│')}`);
+							console.log(`${chalk.yellow('│')}  ${chalk.dim(`Run: ${chalk.cyan('claude-run self-update')}`)}                         ${chalk.yellow('│')}`);
 							console.log(chalk.yellow('└─────────────────────────────────────────────────────────────┘'));
 							console.log('');
 						}
@@ -155,7 +154,7 @@ async function selectContainer(containers: any[]): Promise<string | null> {
 program
 	.name('claude-run')
 	.description('Run Claude Code in isolated Docker containers')
-	.version(currentVersion);
+	.version(currentVersion, '-v, --version', 'Display version number');
 
 // Check for updates before running any command
 program.hook('preAction', async () => {
@@ -638,6 +637,54 @@ program
 		}
 		catch (error: any) {
 			console.error(chalk.red(`Failed to load config: ${error.message}`));
+			process.exit(1);
+		}
+	});
+
+// Self-update command - update to latest version
+program
+	.command('self-update')
+	.alias('update')
+	.description('Update claude-run to the latest version')
+	.action(async () => {
+		const spinner = ora('Checking for updates...').start();
+
+		try {
+			// Check latest version
+			const latestVersion = await new Promise<string>((resolve, reject) => {
+				https.get(`https://registry.npmjs.org/${packageName}/latest`, (res) => {
+					let data = '';
+					res.on('data', chunk => data += chunk);
+					res.on('end', () => {
+						try {
+							const latest = JSON.parse(data);
+							resolve(latest.version);
+						}
+						catch (error) {
+							reject(error);
+						}
+					});
+				}).on('error', reject);
+			});
+
+			if (latestVersion === currentVersion) {
+				spinner.succeed(chalk.green(`Already on the latest version (${currentVersion})`));
+				return;
+			}
+
+			spinner.text = `Updating from ${currentVersion} to ${latestVersion}...`;
+
+			execSync(`npm install -g ${packageName}@latest`, {
+				stdio: 'inherit',
+			});
+
+			spinner.succeed(chalk.green(`✓ Successfully updated to version ${latestVersion}`));
+			console.log(chalk.dim('\nRestart your terminal or run the command again to use the new version.'));
+		}
+		catch (error: any) {
+			spinner.fail(chalk.red(`Update failed: ${error.message}`));
+			console.log(chalk.yellow('\nYou can manually update by running:'));
+			console.log(chalk.cyan(`  npm install -g ${packageName}@latest`));
 			process.exit(1);
 		}
 	});
