@@ -259,12 +259,26 @@ claude-run config
 claude-run
 ```
 
-官方镜像具有以下优势：
+**可用的官方镜像：**
+
+- **GitLab 镜像仓库**（默认）：`registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
+- **GitHub 容器镜像仓库**：`ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+
+两个镜像都具有以下优势：
 - ✅ 定期维护和更新
 - ✅ 已预配置并测试
 - ✅ 开箱即用
 - ✅ 启动速度更快
-- ✅ 无需指定完整的镜像 URL
+- ✅ 使用 GitLab 镜像仓库时无需指定完整的镜像 URL
+
+要使用 GitHub 容器镜像仓库：
+
+```json
+{
+	"buildImage": false,
+	"dockerImage": "ghcr.io/yanranxiaoxi/claude-code-runner:latest"
+}
+```
 
 **方案 2：使用自定义镜像**
 

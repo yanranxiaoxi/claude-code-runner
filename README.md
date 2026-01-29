@@ -259,12 +259,26 @@ Then run:
 claude-run
 ```
 
-The official image is:
+**Available Official Images:**
+
+- **GitLab Registry** (Default): `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
+- **GitHub Container Registry**: `ghcr.io/yanranxiaoxi/claude-code-runner:latest`
+
+Both images are:
 - ✅ Regularly maintained and updated
 - ✅ Pre-configured and tested
 - ✅ Ready to use out of the box
 - ✅ Faster startup time
-- ✅ No need to specify the full image URL
+- ✅ No need to specify the full image URL when using GitLab Registry
+
+To use GitHub Container Registry instead:
+
+```json
+{
+	"buildImage": false,
+	"dockerImage": "ghcr.io/yanranxiaoxi/claude-code-runner:latest"
+}
+```
 
 **Option 2: Use Your Own Custom Image**
 
