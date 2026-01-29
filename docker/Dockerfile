@@ -1,5 +1,8 @@
 FROM docker.io/library/almalinux:10
 
+# Disable automatic updates for Claude Code
+# ENV DISABLE_AUTOUPDATER=1
+
 # Install system dependencies
 RUN dnf install -y epel-release && dnf install -y \
     curl \
