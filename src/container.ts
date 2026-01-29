@@ -124,23 +124,101 @@ export class ContainerManager {
 		const stream = await this.docker.pull(imageName);
 
 		return new Promise((resolve, reject) => {
+			const layerProgress = new Map<string, { current: number; total: number }>();
+			const layerStatus = new Map<string, string>();
+
 			this.docker.modem.followProgress(
 				stream,
 				(err: any, res: any) => {
-					if (err)
+					if (err) {
 						reject(err);
-					else resolve();
+					}
+					else {
+						// Clear the last line and show completion
+						process.stdout.write('\r\x1B[K');
+						console.log(chalk.green('✓ Image pulled successfully'));
+						resolve();
+					}
 				},
 				(event: any) => {
 					if (event.status) {
-						process.stdout.write(`${event.status}`);
-						if (event.progress)
-							process.stdout.write(` ${event.progress}`);
-						process.stdout.write('\n');
+						const layerId = event.id || 'manifest';
+
+						// Track layer status
+						if (event.id) {
+							layerStatus.set(event.id, event.status);
+
+							// Track download progress
+							if (event.progressDetail && event.progressDetail.total) {
+								layerProgress.set(event.id, {
+									current: event.progressDetail.current || 0,
+									total: event.progressDetail.total,
+								});
+							}
+						}
+
+						// Calculate overall progress
+						let totalBytes = 0;
+						let downloadedBytes = 0;
+						let hasProgress = false;
+
+						for (const [id, progress] of layerProgress.entries()) {
+							totalBytes += progress.total;
+							downloadedBytes += progress.current;
+							hasProgress = true;
+						}
+
+						// Count layers by status
+						const downloading = Array.from(layerStatus.values()).filter(s =>
+							s.includes('Downloading') || s.includes('Pulling'),
+						).length;
+						const complete = Array.from(layerStatus.values()).filter(s =>
+							s.includes('Download complete') || s.includes('Already exists') || s.includes('Pull complete'),
+						).length;
+						const total = layerStatus.size;
+
+						// Format progress message with progress bar
+						let message = 'Pulling image: ';
+
+						if (hasProgress && totalBytes > 0) {
+							const percentage = Math.floor((downloadedBytes / totalBytes) * 100);
+							const barWidth = 30;
+							const filledWidth = Math.floor((percentage / 100) * barWidth);
+							const emptyWidth = barWidth - filledWidth;
+
+							const progressBar = chalk.green('█'.repeat(filledWidth)) + chalk.gray('░'.repeat(emptyWidth));
+							const downloaded = this.formatBytes(downloadedBytes);
+							const totalSize = this.formatBytes(totalBytes);
+
+							message += `[${progressBar}] ${percentage}% (${downloaded}/${totalSize})`;
+						}
+						else if (total > 0) {
+							message += `${complete}/${total} layers`;
+						}
+						else {
+							message = event.status;
+						}
+
+						// Add layer count info
+						if (downloading > 0) {
+							message += chalk.dim(` | ${downloading} downloading`);
+						}
+
+						// Use \r to overwrite the same line
+						process.stdout.write(`\r\x1B[K${chalk.blue('• ')}${message}`);
 					}
 				},
 			);
 		});
+	}
+
+	private formatBytes(bytes: number): string {
+		if (bytes === 0)
+			return '0 B';
+		const k = 1024;
+		const sizes = ['B', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
 	}
 
 	private async buildDefaultImage(imageName: string): Promise<void> {
@@ -993,6 +1071,9 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 		const startupScript
 			= defaultShell === 'claude'
 				? `#!/bin/bash
+# Ensure claude is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 echo "🚀 Starting Claude Code..."
 echo "Press Ctrl+C to drop to bash shell"
 echo ""
@@ -1008,6 +1089,9 @@ echo "Type 'exit' to end the session"
 echo ""
 exec /bin/bash`
 				: `#!/bin/bash
+# Ensure claude is in PATH
+export PATH="$HOME/.local/bin:$PATH"
+
 echo "Welcome to Claude Code Sandbox!"
 echo "Type 'claude --dangerously-skip-permissions' to start Claude Code"
 echo "Type 'exit' to end the session"
