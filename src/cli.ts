@@ -42,8 +42,19 @@ async function ensureDockerConfig() {
 }
 
 // Helper function to get Claude Runner containers
-async function getClaudeSandboxContainers() {
+async function getClaudeSandboxContainers(containerPrefixes?: Set<string>) {
 	const containers = await docker.listContainers({ all: true });
+
+	if (containerPrefixes && containerPrefixes.size > 0) {
+		// Filter by configured prefixes
+		return containers.filter(c =>
+			c.Names.some(name =>
+				Array.from(containerPrefixes).some(prefix => name.includes(prefix)),
+			),
+		);
+	}
+
+	// Default behavior - filter by default prefix
 	return containers.filter(c =>
 		c.Names.some(name => name.includes('claude-code-runner')),
 	);
@@ -353,7 +364,20 @@ program
 		const spinner = ora('Cleaning up containers...').start();
 
 		try {
-			const containers = await getClaudeSandboxContainers();
+			// Load config to get custom container prefix
+			const config = await loadConfig('./claude-run.config.json');
+
+			// Collect all container prefixes to clean
+			const containerPrefixes = new Set<string>();
+			if (config.containerPrefix) {
+				containerPrefixes.add(config.containerPrefix);
+			}
+			// Always include default prefix
+			containerPrefixes.add('claude-code-runner');
+
+			spinner.text = `Looking for containers with prefixes: ${Array.from(containerPrefixes).join(', ')}`;
+
+			const containers = await getClaudeSandboxContainers(containerPrefixes);
 			const targetContainers = options.force
 				? containers
 				: containers.filter(c => c.State !== 'running');
@@ -380,30 +404,73 @@ program
 		}
 	});
 
-// Purge command - stop and remove all containers
+// Purge command - stop and remove all containers and images
 program
 	.command('purge')
-	.description('Stop and remove all Claude Runner containers')
+	.description('Stop and remove all Claude Runner containers and images')
 	.option('-y, --yes', 'Skip confirmation prompt')
 	.action(async (options) => {
 		try {
 			await ensureDockerConfig();
-			const containers = await getClaudeSandboxContainers();
 
-			if (containers.length === 0) {
-				console.log(chalk.yellow('No Claude Runner containers found.'));
+			// Load config
+			const config = await loadConfig('./claude-run.config.json');
+
+			// Collect all container prefixes and image names to clean
+			const containerPrefixes = new Set<string>();
+			const imageNames = new Set<string>();
+
+			if (config.containerPrefix) {
+				containerPrefixes.add(config.containerPrefix);
+			}
+			if (config.dockerImage) {
+				imageNames.add(config.dockerImage);
+			}
+
+			// Always include defaults
+			containerPrefixes.add('claude-code-runner');
+			imageNames.add('claude-code-runner:latest');
+
+			const containers = await getClaudeSandboxContainers(containerPrefixes);
+
+			if (containers.length === 0 && imageNames.size === 0) {
+				console.log(chalk.yellow('No Claude Runner containers or images found.'));
 				return;
 			}
 
 			// Show what will be removed
-			console.log(
-				chalk.yellow(`Found ${containers.length} Claude Runner container(s):`),
-			);
-			containers.forEach((c) => {
+			if (containers.length > 0) {
 				console.log(
-					`  ${c.Id.substring(0, 12)} - ${c.Names[0].replace('/', '')} - ${c.State}`,
+					chalk.yellow(`Found ${containers.length} Claude Runner container(s):`),
 				);
-			});
+				containers.forEach((c) => {
+					console.log(
+						`  ${c.Id.substring(0, 12)} - ${c.Names[0].replace('/', '')} - ${c.State}`,
+					);
+				});
+			}
+
+			console.log(chalk.yellow(`\nImages to clean: ${Array.from(imageNames).join(', ')}`));
+
+			// Ask if user wants to keep the configured image
+			let keepConfiguredImage = false;
+			if (config.dockerImage && !options.yes) {
+				const { keep } = await inquirer.prompt([
+					{
+						type: 'confirm',
+						name: 'keep',
+						message: `Do you want to keep the configured image (${config.dockerImage})?`,
+						default: false,
+					},
+				]);
+				keepConfiguredImage = keep;
+			}
+
+			const imagesToRemove = new Set(imageNames);
+			if (keepConfiguredImage && config.dockerImage) {
+				imagesToRemove.delete(config.dockerImage);
+				console.log(chalk.green(`✓ Will keep configured image: ${config.dockerImage}`));
+			}
 
 			// Confirm unless -y flag is used
 			if (!options.yes) {
@@ -411,7 +478,7 @@ program
 					{
 						type: 'confirm',
 						name: 'confirm',
-						message: 'Are you sure you want to stop and remove all containers?',
+						message: 'Are you sure you want to stop and remove all containers and images?',
 						default: false,
 					},
 				]);
@@ -423,8 +490,9 @@ program
 			}
 
 			const spinner = ora('Purging containers...').start();
-			let removed = 0;
+			let removedContainers = 0;
 
+			// Remove containers
 			for (const c of containers) {
 				try {
 					const container = docker.getContainer(c.Id);
@@ -436,25 +504,44 @@ program
 
 					spinner.text = `Removing ${c.Id.substring(0, 12)}...`;
 					await container.remove();
-					removed++;
+					removedContainers++;
 				}
 				catch (error: any) {
 					spinner.warn(
-						`Failed to remove ${c.Id.substring(0, 12)}: ${error.message}`,
+						`Failed to remove container ${c.Id.substring(0, 12)}: ${error.message}`,
 					);
 				}
 			}
 
-			if (removed === containers.length) {
-				spinner.succeed(chalk.green(`✓ Purged all ${removed} container(s)`));
+			if (removedContainers > 0) {
+				spinner.succeed(chalk.green(`✓ Removed ${removedContainers} container(s)`));
 			}
-			else {
-				spinner.warn(
-					chalk.yellow(
-						`Purged ${removed} of ${containers.length} container(s)`,
-					),
-				);
+
+			// Remove images
+			spinner.start('Removing images...');
+			let removedImages = 0;
+
+			for (const imageName of imagesToRemove) {
+				try {
+					const image = docker.getImage(imageName);
+					await image.remove({ force: true });
+					spinner.text = `Removed image: ${imageName}`;
+					removedImages++;
+				}
+				catch (error: any) {
+					// Image might not exist or be in use
+					spinner.warn(`Image not found or in use: ${imageName}`);
+				}
 			}
+
+			if (removedImages > 0) {
+				spinner.succeed(chalk.green(`✓ Removed ${removedImages} image(s)`));
+			}
+			else if (imagesToRemove.size > 0) {
+				spinner.info('No images were removed');
+			}
+
+			console.log(chalk.green('\n✨ Purge complete!'));
 		}
 		catch (error: any) {
 			console.error(chalk.red(`Purge failed: ${error.message}`));
