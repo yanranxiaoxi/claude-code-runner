@@ -97,9 +97,13 @@ RUN mkdir -p /root/.ssh /home/claude/.ssh && \
     chmod 700 /home/claude/.ssh && \
     chmod 600 /home/claude/.ssh/config
 
-# Set git to use credential helper for both users
-RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600' && \
-    sudo -u claude /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
+# Set git to use credential helper for root user
+RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
+
+# Set git to use credential helper for claude user
+USER claude
+RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
+USER root
 
 # Create entrypoint script
 RUN printf '%s\n' '#!/bin/bash' \
