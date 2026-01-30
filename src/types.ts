@@ -31,6 +31,7 @@ export interface SandboxConfig {
 	forwardSshKeys?: boolean; // Default: true - forward ~/.ssh to container
 	forwardGpgKeys?: boolean; // Default: true - forward ~/.gnupg to container
 	forwardSshAgent?: boolean; // Default: true - forward SSH_AUTH_SOCK for passphrase-protected keys
+	forwardGpgAgent?: boolean; // Default: false - forward GPG agent socket for signing in container
 	enableGpgSigning?: boolean; // Default: false - enable GPG commit signing
 }
 

@@ -565,8 +565,18 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 			env.push('SSH_AUTH_SOCK=/tmp/.ssh-agent-sock');
 		}
 
-		// GPG agent - disable TTY requirement for non-interactive use
-		env.push('GPG_TTY=');
+		// GPG agent forwarding - if enabled and socket is available
+		const gpgAgentSocket = path.join(os.homedir(), '.gnupg', 'S.gpg-agent');
+		if (this.config.forwardGpgAgent === true && fs.existsSync(gpgAgentSocket)) {
+			// Point to the container's GPG agent socket relay
+			env.push('GPG_TTY=/dev/tty');
+			// Set GNUPGHOME to use the forwarded agent
+			env.push('GNUPGHOME=/home/claude/.gnupg');
+		}
+		else {
+			// Disable TTY requirement for non-interactive use (no agent available)
+			env.push('GPG_TTY=');
+		}
 
 		// Pass GPG signing preference to container
 		if (this.config.enableGpgSigning) {
@@ -623,6 +633,20 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 		if (forwardSshAgent && sshAuthSock && fs.existsSync(sshAuthSock)) {
 			volumes.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:rw`);
 			console.log(chalk.blue('✓ SSH agent forwarding enabled'));
+		}
+
+		// Mount GPG agent socket if available and explicitly enabled (for GPG signing)
+		const forwardGpgAgent = this.config.forwardGpgAgent === true; // Default: false - must be explicit
+		if (forwardGpgAgent) {
+			// GPG agent socket is typically at ~/.gnupg/S.gpg-agent
+			const gpgAgentSocket = path.join(os.homedir(), '.gnupg', 'S.gpg-agent');
+			if (fs.existsSync(gpgAgentSocket)) {
+				volumes.push(`${gpgAgentSocket}:/tmp/.gpg-agent-sock:rw`);
+				console.log(chalk.blue('✓ GPG agent forwarding enabled'));
+			}
+			else {
+				console.log(chalk.yellow('⚠ GPG agent socket not found - GPG signing may not work'));
+			}
 		}
 
 		// Add custom volumes (legacy format)

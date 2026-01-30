@@ -227,6 +227,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 	"forwardSshKeys": true,
 	"forwardGpgKeys": true,
 	"forwardSshAgent": true,
+	"forwardGpgAgent": false,
 	"enableGpgSigning": false
 }
 ```
@@ -254,6 +255,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `forwardSshKeys`: Forward SSH keys from `~/.ssh` to container (default: true)
 - `forwardGpgKeys`: Forward GPG keys from `~/.gnupg` to container (default: true)
 - `forwardSshAgent`: Forward SSH agent for passphrase-protected keys (default: true)
+- `forwardGpgAgent`: Forward GPG agent for passphrase-protected GPG keys (default: false, requires explicit enabling)
 - `enableGpgSigning`: Enable GPG commit signing in container (default: false)
 
 #### Mount Configuration
@@ -427,19 +429,33 @@ The container will use your host's SSH agent, so you don't need to enter the pas
 
 #### GPG Key Support
 
-GPG keys from `~/.gnupg` are also automatically forwarded to the container. However, **GPG commit signing is disabled by default** to avoid passphrase prompts in non-interactive environments.
+GPG keys from `~/.gnupg` are automatically forwarded to the container. **GPG commit signing is disabled by default** to avoid passphrase prompts in non-interactive environments.
 
-**Important**: Even if your host `.gitconfig` has `commit.gpgsign = true`, GPG signing will be automatically disabled in the container (unless explicitly enabled). This prevents signing failures in containerized environments where `/dev/tty` is not accessible.
+**Three ways to use GPG:**
 
-**To enable GPG commit signing**, add this to your `claude-run.config.json`:
+1. **Direct GPG key usage (recommended for keys without passphrase)**
+   - GPG key files are automatically copied to the container
+   - No additional configuration needed
+   - Only works for keys without a passphrase
 
-```json
-{
-  "enableGpgSigning": true
-}
-```
+2. **GPG agent forwarding (recommended for password-protected keys)**
+   - Enable in your config:
+   ```json
+   {
+     "forwardGpgAgent": true,
+     "enableGpgSigning": true
+   }
+   ```
+   - Host GPG agent is automatically forwarded when container starts
+   - Supports password-protected keys (no need to enter passphrase in container)
+   - Requires `gpg-agent` running on your host machine
 
-> **Note**: Enabling GPG signing requires a GPG key without a passphrase, or proper GPG agent configuration. For security, consider using SSH commit signing instead.
+3. **Completely disable GPG signing**
+   - Default behavior (if you don't set `enableGpgSigning`)
+   - GPG signing will be disabled even if your host `.gitconfig` has `commit.gpgsign = true`
+   - This prevents signing failures in containerized environments where `/dev/tty` is not accessible
+
+> **Note**: For security, consider using SSH commit signing (if your Git server supports it). This way you don't need to configure GPG at all.
 
 #### Disabling SSH/GPG Forwarding
 
@@ -449,7 +465,8 @@ If you don't want to forward your keys, you can disable this feature:
 {
   "forwardSshKeys": false,
   "forwardGpgKeys": false,
-  "forwardSshAgent": false
+  "forwardSshAgent": false,
+  "forwardGpgAgent": false
 }
 ```
 

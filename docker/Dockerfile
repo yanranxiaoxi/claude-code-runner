@@ -168,6 +168,32 @@ RUN printf '%s\n' '#!/bin/bash' \
     '    fi' \
     'fi' \
     '' \
+    '# Set up GPG agent forwarding if socket is mounted' \
+    'if [ -S "/tmp/.gpg-agent-sock" ]; then' \
+    '    # Create a socket proxy that claude user can access' \
+    '    # Using socat to relay GPG agent connections' \
+    '    CLAUDE_GPG_SOCK="/tmp/.gpg-agent-sock-claude"' \
+    '    rm -f "$CLAUDE_GPG_SOCK"' \
+    '    ' \
+    '    # Start socat in background to relay socket connections' \
+    '    socat UNIX-LISTEN:"$CLAUDE_GPG_SOCK",fork,user=claude,group=claude,mode=0600 UNIX-CONNECT:/tmp/.gpg-agent-sock &' \
+    '    ' \
+    '    # Update .gnupg directory if it exists' \
+    '    mkdir -p /home/claude/.gnupg' \
+    '    chown claude:claude /home/claude/.gnupg' \
+    '    chmod 700 /home/claude/.gnupg' \
+    '    ' \
+    '    # Create symlink from GPG agent socket to the relay socket' \
+    '    ln -sf "$CLAUDE_GPG_SOCK" /home/claude/.gnupg/S.gpg-agent 2>/dev/null || true' \
+    '    ' \
+    '    # Test if the relay works (gpg-connect-agent may not be available, so just test socket access)' \
+    '    if [ -S "$CLAUDE_GPG_SOCK" ]; then' \
+    '        echo "✓ GPG agent forwarding enabled via socat relay"' \
+    '    else' \
+    '        echo "⚠ GPG agent socket mounted but relay failed"' \
+    '    fi' \
+    'fi' \
+    '' \
     '# Copy git config if mounted' \
     'if [ -f "/tmp/.gitconfig" ]; then' \
     '    cp /tmp/.gitconfig /home/claude/.gitconfig' \

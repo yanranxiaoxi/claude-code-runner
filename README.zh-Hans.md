@@ -247,6 +247,7 @@ claud-run update        # 别名
 	"forwardSshKeys": true,
 	"forwardGpgKeys": true,
 	"forwardSshAgent": true,
+	"forwardGpgAgent": false,
 	"enableGpgSigning": false
 }
 ```
@@ -274,6 +275,7 @@ claud-run update        # 别名
 - `forwardSshKeys`: 将 `~/.ssh` 中的 SSH 密钥转发到容器（默认：true）
 - `forwardGpgKeys`: 将 `~/.gnupg` 中的 GPG 密钥转发到容器（默认：true）
 - `forwardSshAgent`: 转发 SSH agent 以支持带密码的密钥（默认：true）
+- `forwardGpgAgent`: 转发 GPG agent 以支持带密码的 GPG 密钥（默认：false，需显式启用）
 - `enableGpgSigning`: 在容器中启用 GPG 提交签名（默认：false）
 
 #### 挂载配置
@@ -447,19 +449,33 @@ claude-run  # SSH agent 会被转发到容器
 
 #### GPG 密钥支持
 
-来自 `~/.gnupg` 的 GPG 密钥也会自动转发到容器。但是，**GPG 提交签名默认是禁用的**，以避免在非交互式环境中出现密码提示。
+来自 `~/.gnupg` 的 GPG 密钥会自动转发到容器。**GPG 提交签名默认是禁用的**，以避免在非交互式环境中出现密码提示。
 
-**重要**：即使你的宿主机 `.gitconfig` 配置了 `commit.gpgsign = true`，容器内也会自动禁用 GPG 签名（除非你显式启用）。这是为了避免在无法访问 `/dev/tty` 的容器环境中出现签名失败。
+**三种使用方式：**
 
-**要启用 GPG 提交签名**，在 `claude-run.config.json` 中添加：
+1. **直接使用 GPG 密钥（推荐用于无密码密钥）**
+   - GPG 密钥文件自动复制到容器
+   - 无需额外配置
+   - 仅适用于没有密码的 GPG 密钥
 
-```json
-{
-  "enableGpgSigning": true
-}
-```
+2. **通过 GPG agent 转发（推荐用于密码保护的密钥）**
+   - 需要在配置中启用：
+   ```json
+   {
+     "forwardGpgAgent": true,
+     "enableGpgSigning": true
+   }
+   ```
+   - 宿主机 GPG agent 会在容器启动时自动转发
+   - 支持密码保护的密钥（无需在容器内输入密码）
+   - 需要宿主机 `gpg-agent` 正在运行
 
-> **注意**：启用 GPG 签名需要一个没有密码的 GPG 密钥，或正确配置 GPG agent。为了安全起见，建议考虑使用 SSH 提交签名。
+3. **完全禁用 GPG 签名**
+   - 默认行为（如果不配置 `enableGpgSigning`）
+   - 即使宿主机配置了 `commit.gpgsign = true`，容器内也会禁用签名
+   - 这是为了避免在无法访问 `/dev/tty` 的容器环境中出现签名失败
+
+> **注意**：为了安全起见，建议使用 SSH 提交签名（如果 Git 服务器支持）。这样不需要配置 GPG 就能实现签名。
 
 #### 禁用 SSH/GPG 转发
 
@@ -469,7 +485,8 @@ claude-run  # SSH agent 会被转发到容器
 {
   "forwardSshKeys": false,
   "forwardGpgKeys": false,
-  "forwardSshAgent": false
+  "forwardSshAgent": false,
+  "forwardGpgAgent": false
 }
 ```
 
