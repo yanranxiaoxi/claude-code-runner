@@ -30,5 +30,9 @@
 	"bashTimeout": 600000,
 	"containerPrefix": "claude-code-runner",
 	"claudeConfigPath": "~/.claude.json",
-	"dockerSocketPath": null
+	"dockerSocketPath": null,
+	"forwardSshKeys": true,
+	"forwardGpgKeys": true,
+	"forwardSshAgent": true,
+	"enableGpgSigning": false
 }

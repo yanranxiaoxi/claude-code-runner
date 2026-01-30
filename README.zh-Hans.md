@@ -178,7 +178,7 @@ claud-run update        # 别名
 ```json
 {
 	"dockerImage": "claude-code-runner:latest",
-  "buildImage": true,
+	"buildImage": true,
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
@@ -206,7 +206,12 @@ claud-run update        # 别名
 	"maxThinkingTokens": 100000,
 	"bashTimeout": 600000,
 	"containerPrefix": "my-project",
-	"claudeConfigPath": "~/.claude.json"
+	"claudeConfigPath": "~/.claude.json",
+	"dockerSocketPath":"/run/user/1000/podman/podman.sock",
+	"forwardSshKeys": true,
+	"forwardGpgKeys": true,
+	"forwardSshAgent": true,
+	"enableGpgSigning": false
 }
 ```
 
@@ -230,6 +235,10 @@ claud-run update        # 别名
 - `containerPrefix`: 容器名称的自定义前缀
 - `claudeConfigPath`: Claude 配置文件的路径
 - `dockerSocketPath`: 自定义 Docker/Podman 套接字路径（默认自动检测）
+- `forwardSshKeys`: 将 `~/.ssh` 中的 SSH 密钥转发到容器（默认：true）
+- `forwardGpgKeys`: 将 `~/.gnupg` 中的 GPG 密钥转发到容器（默认：true）
+- `forwardSshAgent`: 转发 SSH agent 以支持带密码的密钥（默认：true）
+- `enableGpgSigning`: 在容器中启用 GPG 提交签名（默认：false）
 
 #### 挂载配置
 
@@ -361,6 +370,65 @@ Podman 的示例配置：
 
 - Docker 套接字不可用
 - 在标准位置找到 Podman 套接字（`/run/podman/podman.sock` 或 `$XDG_RUNTIME_DIR/podman/podman.sock`）
+
+### SSH 和 GPG 密钥支持
+
+Claude Code Runner 会自动将你的 SSH 和 GPG 密钥转发到容器中，让你可以无缝地对任何远程仓库（GitHub、GitLab、Bitbucket、自托管等）进行 git 操作。
+
+#### 自动 SSH 密钥转发
+
+默认情况下，你的 `~/.ssh` 目录会自动挂载到容器中并设置正确的权限：
+
+- ✅ 支持所有 git 托管提供商（不仅仅是 GitHub）
+- ✅ 支持 SSH 协议（`git@github.com:user/repo.git`）
+- ✅ 自动处理密钥权限
+- ✅ 支持多个 SSH 密钥
+
+**对于带密码的 SSH 密钥**，在运行 `claude-run` 之前先在宿主机上启动 SSH agent：
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa  # 输入你的密码
+claude-run  # SSH agent 会被转发到容器
+```
+
+容器将使用宿主机的 SSH agent，因此你无需再次输入密码。
+
+#### GPG 密钥支持
+
+来自 `~/.gnupg` 的 GPG 密钥也会自动转发到容器。但是，**GPG 提交签名默认是禁用的**，以避免在非交互式环境中出现密码提示。
+
+**要启用 GPG 提交签名**，在 `claude-run.config.json` 中添加：
+
+```json
+{
+  "enableGpgSigning": true
+}
+```
+
+> **注意**：GPG 签名需要一个没有密码的 GPG 密钥，或正确配置 GPG agent。为了安全起见，建议考虑使用 SSH 提交签名。
+
+#### 禁用 SSH/GPG 转发
+
+如果你不想转发密钥，可以禁用此功能：
+
+```json
+{
+  "forwardSshKeys": false,
+  "forwardGpgKeys": false,
+  "forwardSshAgent": false
+}
+```
+
+#### Git 配置
+
+你的 git 配置（姓名、邮箱等）会自动从宿主机复制。容器已预先配置为：
+
+- 自动接受所有 SSH 主机密钥（为了安全，请在首次连接时手动验证）
+- 使用 SSH agent 进行身份验证
+- 同时支持 SSH 和 HTTPS 协议
+
+**对于使用令牌的 HTTPS**，设置 `GITHUB_TOKEN` 环境变量或使用内置的 `gh` CLI 令牌发现功能。
 
 ### Web UI 终端
 

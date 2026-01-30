@@ -32,6 +32,7 @@
 	"scripts": {
 		"build": "rimraf dist && tsc && node scripts/inject-data.js",
 		"dev": "tsc --watch",
+		"link": "npm remove -g claude-code-runner || true && npm run build && npm link",
 		"start": "npm run build && node dist/cli.js",
 		"lint": "eslint",
 		"fix": "eslint --fix",

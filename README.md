@@ -206,7 +206,12 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 	"maxThinkingTokens": 100000,
 	"bashTimeout": 600000,
 	"containerPrefix": "my-project",
-	"claudeConfigPath": "~/.claude.json"
+	"claudeConfigPath": "~/.claude.json",
+	"dockerSocketPath":"/run/user/1000/podman/podman.sock",
+	"forwardSshKeys": true,
+	"forwardGpgKeys": true,
+	"forwardSshAgent": true,
+	"enableGpgSigning": false
 }
 ```
 
@@ -230,6 +235,10 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `containerPrefix`: Custom prefix for container names
 - `claudeConfigPath`: Path to Claude configuration file
 - `dockerSocketPath`: Custom Docker/Podman socket path (auto-detected by default)
+- `forwardSshKeys`: Forward SSH keys from `~/.ssh` to container (default: true)
+- `forwardGpgKeys`: Forward GPG keys from `~/.gnupg` to container (default: true)
+- `forwardSshAgent`: Forward SSH agent for passphrase-protected keys (default: true)
+- `enableGpgSigning`: Enable GPG commit signing in container (default: false)
 
 #### Mount Configuration
 
@@ -361,6 +370,65 @@ The tool will automatically detect and use Podman if:
 
 - Docker socket is not available
 - Podman socket is found at standard locations (`/run/podman/podman.sock` or `$XDG_RUNTIME_DIR/podman/podman.sock`)
+
+### SSH and GPG Key Support
+
+Claude Code Runner automatically forwards your SSH and GPG keys to the container, enabling seamless git operations with any remote repository (GitHub, GitLab, Bitbucket, self-hosted, etc.).
+
+#### Automatic SSH Key Forwarding
+
+By default, your `~/.ssh` directory is automatically mounted into the container with proper permissions:
+
+- ✅ Supports all git hosting providers (not just GitHub)
+- ✅ Works with SSH protocol (`git@github.com:user/repo.git`)
+- ✅ Automatically handles key permissions
+- ✅ Supports multiple SSH keys
+
+**For passphrase-protected SSH keys**, start SSH agent on your host before running `claude-run`:
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa  # Enter your passphrase
+claude-run  # SSH agent is forwarded to container
+```
+
+The container will use your host's SSH agent, so you don't need to enter the passphrase again.
+
+#### GPG Key Support
+
+GPG keys from `~/.gnupg` are also automatically forwarded to the container. However, **GPG commit signing is disabled by default** to avoid passphrase prompts in non-interactive environments.
+
+**To enable GPG commit signing**, add this to your `claude-run.config.json`:
+
+```json
+{
+  "enableGpgSigning": true
+}
+```
+
+> **Note**: GPG signing requires a GPG key without a passphrase, or proper GPG agent configuration. For security, consider using SSH commit signing instead.
+
+#### Disabling SSH/GPG Forwarding
+
+If you don't want to forward your keys, you can disable this feature:
+
+```json
+{
+  "forwardSshKeys": false,
+  "forwardGpgKeys": false,
+  "forwardSshAgent": false
+}
+```
+
+#### Git Configuration
+
+Your git configuration (name, email, etc.) is automatically copied from the host. The container is pre-configured to:
+
+- Accept all SSH host keys automatically (for security, verify manually on first connection)
+- Use SSH agent for authentication
+- Support both SSH and HTTPS protocols
+
+**For HTTPS with tokens**, set the `GITHUB_TOKEN` environment variable or use the built-in token discovery from `gh` CLI.
 
 ### Web UI Terminal
 

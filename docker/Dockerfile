@@ -86,15 +86,16 @@ RUN printf '%s\n' '#!/bin/bash' \
     mv /usr/bin/git /usr/bin/git.real && \
     ln -s /usr/local/bin/git-wrapper /usr/bin/git
 
-# Set up SSH config for both root and claude user
-RUN mkdir -p /root/.ssh /home/claude/.ssh && \
-    printf '%s\n' 'Host github.com' \
+# Set up SSH config for both root and claude user (support any git host)
+RUN mkdir -p /root/.ssh /home/claude/.ssh /home/claude/.gnupg && \
+    printf '%s\n' 'Host *' \
     '    StrictHostKeyChecking no' \
-    '    UserKnownHostsFile /dev/null' > /root/.ssh/config && \
+    '    UserKnownHostsFile /dev/null' \
+    '    AddKeysToAgent yes' > /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
     cp /root/.ssh/config /home/claude/.ssh/config && \
-    chown -R claude:claude /home/claude/.ssh && \
-    chmod 700 /home/claude/.ssh && \
+    chown -R claude:claude /home/claude/.ssh /home/claude/.gnupg && \
+    chmod 700 /home/claude/.ssh /home/claude/.gnupg && \
     chmod 600 /home/claude/.ssh/config
 
 # Set git to use credential helper for root user
@@ -105,19 +106,63 @@ USER claude
 RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
 USER root
 
-# Create entrypoint script
+# Create entrypoint script that properly sets up SSH and GPG for claude user
 RUN printf '%s\n' '#!/bin/bash' \
     'set -e' \
     '' \
-    '# Copy SSH keys if mounted' \
-    'if [ -d "/tmp/.ssh" ]; then' \
-    '    cp -r /tmp/.ssh/* /root/.ssh/ 2>/dev/null || true' \
-    '    chmod 600 /root/.ssh/* 2>/dev/null || true' \
+    '# Copy SSH keys from host if mounted' \
+    'if [ -d "/tmp/.host-ssh" ]; then' \
+    '    # Copy to claude user SSH directory' \
+    '    cp -r /tmp/.host-ssh/* /home/claude/.ssh/ 2>/dev/null || true' \
+    '    # Fix ownership and permissions' \
+    '    chown -R claude:claude /home/claude/.ssh' \
+    '    chmod 700 /home/claude/.ssh' \
+    '    chmod 600 /home/claude/.ssh/* 2>/dev/null || true' \
+    '    # Keep config readable' \
+    '    [ -f /home/claude/.ssh/config ] && chmod 644 /home/claude/.ssh/config || true' \
+    '    # Make public keys readable' \
+    '    chmod 644 /home/claude/.ssh/*.pub 2>/dev/null || true' \
+    '    # known_hosts should be writable' \
+    '    [ -f /home/claude/.ssh/known_hosts ] && chmod 644 /home/claude/.ssh/known_hosts || true' \
+    '    echo "✓ SSH keys configured"' \
+    'fi' \
+    '' \
+    '# Copy GPG keys from host if mounted' \
+    'if [ -d "/tmp/.host-gnupg" ]; then' \
+    '    # Copy to claude user GPG directory' \
+    '    cp -r /tmp/.host-gnupg/* /home/claude/.gnupg/ 2>/dev/null || true' \
+    '    # Fix ownership and permissions' \
+    '    chown -R claude:claude /home/claude/.gnupg' \
+    '    chmod 700 /home/claude/.gnupg' \
+    '    chmod 600 /home/claude/.gnupg/* 2>/dev/null || true' \
+    '    # Some GPG files need specific permissions' \
+    '    chmod 700 /home/claude/.gnupg/private-keys-v1.d 2>/dev/null || true' \
+    '    echo "✓ GPG keys configured"' \
+    'fi' \
+    '' \
+    '# Set up SSH agent forwarding if socket is mounted' \
+    'if [ -S "/tmp/.ssh-agent-sock" ]; then' \
+    '    export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock' \
+    '    echo "export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock" >> /home/claude/.bashrc' \
+    '    echo "✓ SSH agent forwarding enabled"' \
     'fi' \
     '' \
     '# Copy git config if mounted' \
     'if [ -f "/tmp/.gitconfig" ]; then' \
-    '    cp /tmp/.gitconfig /root/.gitconfig' \
+    '    cp /tmp/.gitconfig /home/claude/.gitconfig' \
+    '    chown claude:claude /home/claude/.gitconfig' \
+    '    echo "✓ Git config copied"' \
+    'fi' \
+    '' \
+    '# Start GPG agent for claude user if GPG keys exist' \
+    'if [ -d "/home/claude/.gnupg" ] && [ "$(ls -A /home/claude/.gnupg 2>/dev/null)" ]; then' \
+    '    # Configure GPG to not use pinentry for passphrase (use loopback mode)' \
+    '    mkdir -p /home/claude/.gnupg' \
+    '    echo "allow-loopback-pinentry" >> /home/claude/.gnupg/gpg-agent.conf 2>/dev/null || true' \
+    '    echo "pinentry-mode loopback" >> /home/claude/.gnupg/gpg.conf 2>/dev/null || true' \
+    '    chown -R claude:claude /home/claude/.gnupg' \
+    '    chmod 700 /home/claude/.gnupg' \
+    '    chmod 600 /home/claude/.gnupg/*.conf 2>/dev/null || true' \
     'fi' \
     '' \
     '# Execute the command' \

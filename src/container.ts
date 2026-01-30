@@ -559,6 +559,20 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 			env.push(`GIT_COMMITTER_EMAIL=${process.env.GIT_COMMITTER_EMAIL}`);
 		}
 
+		// SSH agent forwarding - if socket is available, set the container path
+		const sshAuthSock = process.env.SSH_AUTH_SOCK;
+		if (sshAuthSock && fs.existsSync(sshAuthSock)) {
+			env.push('SSH_AUTH_SOCK=/tmp/.ssh-agent-sock');
+		}
+
+		// GPG agent - disable TTY requirement for non-interactive use
+		env.push('GPG_TTY=');
+
+		// Pass GPG signing preference to container
+		if (this.config.enableGpgSigning) {
+			env.push('GIT_COMMIT_GPG_SIGN=true');
+		}
+
 		// Additional config
 		env.push('CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1');
 		if (this.config.maxThinkingTokens) {
@@ -585,7 +599,31 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 		// NO MOUNTING workspace - we'll copy files instead
 		const volumes: string[] = [];
 
-		// NO SSH mounting - we'll use GitHub tokens instead
+		// Mount SSH directory if it exists and not disabled (read-only for security)
+		const forwardSshKeys = this.config.forwardSshKeys !== false; // Default: true
+		const sshDir = path.join(os.homedir(), '.ssh');
+		if (forwardSshKeys && fs.existsSync(sshDir)) {
+			// Mount to /tmp/.host-ssh first, then we'll copy with correct permissions in container
+			volumes.push(`${sshDir}:/tmp/.host-ssh:ro`);
+			console.log(chalk.blue('✓ SSH keys will be available in container'));
+		}
+
+		// Mount GPG directory if it exists and not disabled (read-only for security)
+		const forwardGpgKeys = this.config.forwardGpgKeys !== false; // Default: true
+		const gnupgDir = path.join(os.homedir(), '.gnupg');
+		if (forwardGpgKeys && fs.existsSync(gnupgDir)) {
+			// Mount to /tmp/.host-gnupg first, then we'll copy with correct permissions in container
+			volumes.push(`${gnupgDir}:/tmp/.host-gnupg:ro`);
+			console.log(chalk.blue('✓ GPG keys will be available in container'));
+		}
+
+		// Mount SSH agent socket if available and not disabled (for passphrase-protected keys)
+		const forwardSshAgent = this.config.forwardSshAgent !== false; // Default: true
+		const sshAuthSock = process.env.SSH_AUTH_SOCK;
+		if (forwardSshAgent && sshAuthSock && fs.existsSync(sshAuthSock)) {
+			volumes.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:ro`);
+			console.log(chalk.blue('✓ SSH agent forwarding enabled'));
+		}
 
 		// Add custom volumes (legacy format)
 		if (this.config.volumes) {
@@ -1126,7 +1164,24 @@ exec /bin/bash`;
         git config --global --add safe.directory /workspace &&
         # Clean up macOS resource fork files in git pack directory
         find .git/objects/pack -name "._pack-*.idx" -type f -delete 2>/dev/null || true &&
-        # Configure git to use GitHub token if available
+        # Configure git commit signing - disable GPG signing by default to avoid passphrase prompts
+        # Users can enable it by setting GIT_COMMIT_GPG_SIGN=true in environment
+        if [ -z "$GIT_COMMIT_GPG_SIGN" ] || [ "$GIT_COMMIT_GPG_SIGN" != "true" ]; then
+          git config --global commit.gpgsign false
+          echo "✓ GPG signing disabled (set GIT_COMMIT_GPG_SIGN=true to enable)"
+        fi &&
+        # Start SSH agent if not already running and we have keys
+        if [ -d "/home/claude/.ssh" ] && [ -z "$SSH_AUTH_SOCK" ]; then
+          eval "$(ssh-agent -s)" > /dev/null 2>&1 || true
+          # Add keys without passphrase (passphrase-protected keys need agent forwarding)
+          for key in /home/claude/.ssh/id_* ; do
+            if [ -f "$key" ] && [[ "$key" != *.pub ]]; then
+              ssh-add "$key" 2>/dev/null || true
+            fi
+          done
+          echo "✓ SSH agent started"
+        fi &&
+        # Configure git to use GitHub token if available (for HTTPS)
         if [ -n "$GITHUB_TOKEN" ]; then
           git config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           git config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
