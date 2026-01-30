@@ -125,8 +125,7 @@ export class ContainerManager {
 				await this.pullImage(imageName);
 			}
 			catch (error) {
-				console.log(chalk.yellow('⚠ Failed to pull image, using inline Dockerfile'));
-				await this.buildDefaultImage(imageName);
+				throw new Error(`Failed to pull image '${imageName}' and no Dockerfile available. Please ensure docker/Dockerfile exists or use a pre-built image.`);
 			}
 		}
 	}
@@ -231,139 +230,6 @@ export class ContainerManager {
 		const sizes = ['B', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(k));
 		return `${(bytes / k ** i).toFixed(1)} ${sizes[i]}`;
-	}
-
-	private async buildDefaultImage(imageName: string): Promise<void> {
-		const dockerfile = `
-FROM docker.io/library/almalinux:10
-
-# Install system dependencies
-RUN dnf install -y epel-release && dnf install -y \
-    curl \\
-    git \\
-    openssh-clients \\
-    python3 \\
-    python3-pip \\
-    gcc \\
-    gcc-c++ \\
-    make \\
-    sudo \\
-    vim \\
-    jq \\
-    ca-certificates \\
-    gnupg2 \\
-    inotify-tools \\
-    rsync \\
-    && dnf clean all
-
-# Install GitHub CLI
-RUN dnf install -y 'dnf-command(config-manager)' \\
-    && dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo \\
-    && dnf install -y gh
-
-# Install Claude Code using native installer
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Ensure claude is in PATH for all users
-ENV PATH="/root/.local/bin:\${PATH}"
-
-# Create a non-root user with sudo privileges
-RUN useradd -m -s /bin/bash claude && \\
-    echo 'claude ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \\
-    usermod -aG wheel claude
-
-# Switch to claude user to install Claude Code
-USER claude
-
-# Install Claude Code for claude user
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Ensure claude is in PATH for claude user
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc
-
-# Switch back to root for remaining setup
-USER root
-
-# Create workspace directory and set ownership
-RUN mkdir -p /workspace && \\
-    chown -R claude:claude /workspace
-
-# Switch to non-root user
-USER claude
-WORKDIR /workspace
-
-# Set up entrypoint
-ENTRYPOINT ["/bin/bash", "-c"]
-`;
-		/*
-RUN echo '#!/bin/bash\\n\\
-# Allow the initial branch creation\\n\\
-if [ ! -f /tmp/.branch-created ]; then\\n\\
-    /usr/bin/git "$@"\\n\\
-    if [[ "$1" == "checkout" ]] && [[ "$2" == "-b" ]]; then\\n\\
-        touch /tmp/.branch-created\\n\\
-    fi\\n\\
-else\\n\\
-    # After initial branch creation, prevent switching\\n\\
-    if [[ "$1" == "checkout" ]] && [[ "$2" != "-b" ]]; then\\n\\
-        echo "Branch switching is disabled in claude-code-runner"\\n\\
-        exit 1\\n\\
-    fi\\n\\
-    if [[ "$1" == "switch" ]]; then\\n\\
-        echo "Branch switching is disabled in claude-code-runner"\\n\\
-        exit 1\\n\\
-    fi\\n\\
-    /usr/bin/git "$@"\\n\\
-fi' > /usr/local/bin/git && \\
-    chmod +x /usr/local/bin/git
-# Create startup script
-RUN echo '#!/bin/bash\\n\\
-echo "Waiting for attachment..."\\n\\
-sleep 2\\n\\
-cd /workspace\\n\\
-git checkout -b "$1"\\n\\
-echo "Starting Claude Code on branch $1..."\\n\\
-exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
-    chmod +x /start-claude.sh */
-		// Build image from string
-		const pack = tarStream.pack();
-
-		// Add Dockerfile to tar
-		pack.entry({ name: 'Dockerfile' }, dockerfile, (err: any) => {
-			if (err)
-				throw err;
-			pack.finalize();
-		});
-
-		// Convert to buffer for docker
-		const chunks: Buffer[] = [];
-		pack.on('data', (chunk: any) => chunks.push(chunk));
-
-		await new Promise((resolve) => {
-			pack.on('end', resolve);
-		});
-
-		const tarBuffer = Buffer.concat(chunks);
-		const buildStream = await this.docker.buildImage(tarBuffer as any, {
-			t: imageName,
-		});
-
-		// Wait for build to complete
-		await new Promise((resolve, reject) => {
-			this.docker.modem.followProgress(
-				buildStream as any,
-				(err: any, res: any) => {
-					if (err)
-						reject(err);
-					else resolve(res);
-				},
-				(event: any) => {
-					if (event.stream) {
-						process.stdout.write(event.stream);
-					}
-				},
-			);
-		});
 	}
 
 	private async buildImage(
