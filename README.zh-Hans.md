@@ -65,6 +65,40 @@ claude-run
 3. 在 `http://localhost:3456` 上启动 Web UI
 4. 自动打开浏览器
 
+> [!NOTE]
+>
+> **使用带密码的 SSH 密钥**
+>
+> 如果你的 SSH 密钥设置了密码保护，在运行 `claude-run` 之前先启动 SSH agent：
+>
+> ```bash
+> eval "$(ssh-agent -s)"
+> ssh-add ~/.ssh/id_rsa  # 输入一次密码
+> claude-run  # SSH agent 会被转发到容器
+> ```
+>
+> 这样 Claude Code 就可以使用你的 SSH 密钥，而不会反复提示输入密码。
+
+> [!TIP]
+>
+> **中国大陆用户配置代理**
+>
+> 如果你在中国大陆地区，可能需要配置代理以访问 Claude API。参考 `claude-run.config.cn-example.json` 创建配置文件：
+>
+> ```json
+> {
+>   "buildImage": false,
+>   "environment": {
+>     "ANTHROPIC_AUTH_TOKEN": "<YOUR_ANTHROPIC_AUTH_TOKEN>",
+>     "ANTHROPIC_BASE_URL": "https://api.ai.soraharu.com",
+>     "ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-5",
+>     "ANTHROPIC_SMALL_FAST_MODEL": "anthropic/claude-haiku-4-5"
+>   }
+> }
+> ```
+>
+> 将 `<YOUR_ANTHROPIC_AUTH_TOKEN>` 替换为你的实际令牌，`ANTHROPIC_BASE_URL` 替换为你的代理地址。
+
 ### 命令
 
 #### `claude-run` (默认)

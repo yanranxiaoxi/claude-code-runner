@@ -50,7 +50,9 @@ npm install -g claude-code-runner
 
 ### Quick Start
 
-> **Tip**: For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image (`ghcr.io/yanranxiaoxi/claude-code-runner:latest`) will be used automatically.
+> [!TIP]
+>
+> For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image (`ghcr.io/yanranxiaoxi/claude-code-runner:latest`) will be used automatically.
 
 Simply run in any git repository:
 
@@ -64,6 +66,20 @@ This will:
 2. Start a Docker container with Claude Code
 3. Launch a web UI at `http://localhost:3456`
 4. Open your browser automatically
+
+> [!NOTE]
+>
+> **Working with Passphrase-Protected SSH Keys**
+>
+> If your SSH keys are protected with a passphrase, start the SSH agent before running `claude-run`:
+>
+> ```bash
+> eval "$(ssh-agent -s)"
+> ssh-add ~/.ssh/id_rsa  # Enter your passphrase once
+> claude-run  # SSH agent is forwarded to container
+> ```
+>
+> This allows Claude Code to use your SSH keys without repeatedly prompting for the passphrase.
 
 ### Commands
 
