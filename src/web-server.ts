@@ -181,7 +181,7 @@ export class WebUIServer {
 					}
 				}
 				catch (error) {
-					console.warn('Could not get repository URL:', error);
+					// No origin remote configured; leave repoUrl empty
 				}
 
 				// Get PR info using GitHub CLI (only for GitHub repositories)

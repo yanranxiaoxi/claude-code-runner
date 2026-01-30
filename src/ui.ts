@@ -64,6 +64,24 @@ export class UIManager {
 		return action;
 	}
 
+	async askGitInit(): Promise<boolean> {
+		console.log('');
+		console.log(chalk.yellow('⚠ Not a git repository'));
+		console.log(chalk.gray('Claude Code Runner works best with git for tracking changes.'));
+		console.log('');
+
+		const { shouldInit } = await inquirer.prompt([
+			{
+				type: 'confirm',
+				name: 'shouldInit',
+				message: 'Would you like to initialize a git repository in this directory?',
+				default: true,
+			},
+		]);
+
+		return shouldInit;
+	}
+
 	showSpinner(message: string): any {
 		return ora(message).start();
 	}

@@ -143,9 +143,7 @@ export class ShadowRepository {
 				}
 			}
 			catch (remoteError) {
-				console.log(
-					chalk.gray('  (Could not configure remote URL, using local)'),
-				);
+				// No origin remote configured; keep local remote
 			}
 
 			// Create an initial commit if the repo is empty (no HEAD)
@@ -474,7 +472,7 @@ export class ShadowRepository {
 			if (ownershipFixed) {
 				try {
 					const { stdout: verification } = await execAsync(
-						`${this.containerCmd} exec ${containerId} ls -la ${containerPath}/README.md 2>/dev/null || echo "no readme"`,
+						`${this.containerCmd} exec ${containerId} ls -ld ${containerPath} 2>/dev/null || echo "no path"`,
 					);
 					if (verification.includes('claude claude')) {
 						console.log(chalk.green('  ✓ Container file ownership fixed'));
@@ -482,7 +480,7 @@ export class ShadowRepository {
 					else {
 						console.log(
 							chalk.yellow(
-								'  ⚠ Ownership fix verification failed, but continuing...',
+								'  ⚠ Ownership fix verification failed (may be rootless/permission-limited), but continuing...',
 							),
 						);
 					}

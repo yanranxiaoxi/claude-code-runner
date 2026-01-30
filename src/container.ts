@@ -1086,33 +1086,17 @@ exec /bin/bash`;
         if [ -n "${prFetchRef || ''}" ]; then
           echo "• Fetching PR branch..." &&
           git fetch origin ${prFetchRef} &&
-          if git show-ref --verify --quiet refs/heads/"${branchName}"; then
-            git checkout "${branchName}" &&
-            echo "✓ Switched to existing PR branch: ${branchName}"
-          else
-            git checkout "${branchName}" &&
-            echo "✓ Checked out PR branch: ${branchName}"
-          fi
+		  git checkout -B "${branchName}" FETCH_HEAD &&
+		  echo "✓ Checked out PR branch: ${branchName}"
         elif [ -n "${remoteFetchRef || ''}" ]; then
           echo "• Fetching remote branch..." &&
           git fetch origin &&
-          if git show-ref --verify --quiet refs/heads/"${branchName}"; then
-            git checkout "${branchName}" &&
-            git pull origin "${branchName}" &&
-            echo "✓ Switched to existing remote branch: ${branchName}"
-          else
-            git checkout -b "${branchName}" "${remoteFetchRef}" &&
-            echo "✓ Created local branch from remote: ${branchName}"
-          fi
+		  git checkout -B "${branchName}" "${remoteFetchRef}" &&
+		  echo "✓ Checked out remote branch: ${branchName}"
         else
           # Regular branch creation
-          if git show-ref --verify --quiet refs/heads/"${branchName}"; then
-            git checkout "${branchName}" &&
-            echo "✓ Switched to existing branch: ${branchName}"
-          else
-            git checkout -b "${branchName}" &&
-            echo "✓ Created new branch: ${branchName}"
-          fi
+		  git checkout -B "${branchName}" &&
+		  echo "✓ Checked out branch: ${branchName}"
         fi &&
         cat > /home/claude/start-session.sh << 'EOF'
 ${startupScript}
@@ -1141,6 +1125,8 @@ EOF
 						|| output.includes('✓ Switched to existing remote branch')
 						|| output.includes('✓ Switched to existing PR branch')
 						|| output.includes('✓ Checked out PR branch')
+						|| output.includes('✓ Checked out remote branch')
+						|| output.includes('✓ Checked out branch')
 						|| output.includes('✓ Created local branch from remote'))
 					&& output.includes('✓ Startup script created')
 				) {

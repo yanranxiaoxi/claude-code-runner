@@ -190,11 +190,59 @@ export class ClaudeSandbox {
 	}
 
 	private async verifyGitRepo(): Promise<void> {
-		const isRepo = await this.git.checkIsRepo();
+		let isRepo = false;
+		try {
+			isRepo = await this.git.checkIsRepo();
+		}
+		catch {
+			isRepo = false;
+		}
 		if (!isRepo) {
-			throw new Error(
-				'Not a git repository. Please run claude-run from within a git repository.',
-			);
+			// Ask user if they want to initialize a git repository
+			const shouldInit = await this.ui.askGitInit();
+
+			if (shouldInit) {
+				try {
+					console.log(chalk.blue('Initializing git repository...'));
+					await this.git.init();
+
+					// Ensure local git identity so initial commit won't fail
+					try {
+						const nameConfig = await this.git.getConfig('user.name');
+						if (!nameConfig?.value) {
+							await this.git.addConfig('user.name', 'Claude Code Runner');
+						}
+						const emailConfig = await this.git.getConfig('user.email');
+						if (!emailConfig?.value) {
+							await this.git.addConfig('user.email', 'claude-runner@localhost');
+						}
+					}
+					catch {
+						// If config checks fail, continue and let git use global config if available
+					}
+
+					// Create initial commit so HEAD exists for archiving
+					await this.git.add('.');
+					await this.git.commit('Initial commit', undefined, { '--allow-empty': null });
+
+					console.log(chalk.green('✓ Git repository initialized successfully'));
+					console.log(chalk.gray('✓ Initial commit created'));
+					console.log('');
+					console.log(chalk.yellow('⚠ Important: Set up a remote repository to save your changes'));
+					console.log(chalk.gray('  Example:'));
+					console.log(chalk.gray('    git remote add origin <your-repo-url>'));
+					console.log(chalk.gray('    git push -u origin main'));
+					console.log('');
+				}
+				catch (error) {
+					throw new Error(`Failed to initialize git repository: ${error}`);
+				}
+			}
+			else {
+				throw new Error(
+					'Not a git repository. Please run claude-run from within a git repository or initialize one.',
+				);
+			}
 		}
 	}
 
