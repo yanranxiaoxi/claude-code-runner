@@ -364,7 +364,9 @@ Claude Code Runner now supports Podman as an alternative to Docker. The tool aut
 - **Custom socket paths**: Use the `dockerSocketPath` configuration option to specify a custom socket
 - **Environment variable**: Set `DOCKER_HOST` to override socket detection
 
-> **Important**: If you're using Podman in rootless mode, you need to enable the Podman socket service:
+> [!IMPORTANT]
+>
+> If you're using Podman in rootless mode, you need to enable the Podman socket service:
 >
 > ```bash
 > systemctl --user enable --now podman.socket
@@ -412,6 +414,8 @@ claude-run  # SSH agent is forwarded to container
 
 The container will use your host's SSH agent, so you don't need to enter the passphrase again.
 
+> [!NOTE]
+>
 > **Troubleshooting: SSH Agent Connection Failed**
 >
 > If running `ssh-add -l` inside the container shows "communication with agent failed":
@@ -455,7 +459,9 @@ GPG keys from `~/.gnupg` are automatically forwarded to the container. **GPG com
    - GPG signing will be disabled even if your host `.gitconfig` has `commit.gpgsign = true`
    - This prevents signing failures in containerized environments where `/dev/tty` is not accessible
 
-> **Note**: For security, consider using SSH commit signing (if your Git server supports it). This way you don't need to configure GPG at all.
+> [!NOTE]
+>
+> For security, consider using SSH commit signing (if your Git server supports it). This way you don't need to configure GPG at all.
 
 #### Disabling SSH/GPG Forwarding
 

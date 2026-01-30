@@ -384,7 +384,9 @@ Claude Code Runner 还支持 Podman 作为 Docker 的替代方案。该工具通
 - **自定义套接字路径**: 使用 `dockerSocketPath` 配置选项指定自定义套接字
 - **环境变量**: 设置 `DOCKER_HOST` 来覆盖套接字检测
 
-> **重要提示**：如果你使用 Podman 的 rootless（无根）模式，需要启用 Podman socket 服务：
+> [!IMPORTANT]
+>
+> 如果你使用 Podman 的 rootless（无根）模式，需要启用 Podman socket 服务：
 >
 > ```bash
 > systemctl --user enable --now podman.socket
@@ -432,6 +434,8 @@ claude-run  # SSH agent 会被转发到容器
 
 容器将使用宿主机的 SSH agent，因此你无需再次输入密码。
 
+> [!NOTE]
+>
 > **故障排除：SSH Agent 无法连接**
 >
 > 如果在容器内运行 `ssh-add -l` 显示 "communication with agent failed"：
@@ -475,7 +479,9 @@ claude-run  # SSH agent 会被转发到容器
    - 即使宿主机配置了 `commit.gpgsign = true`，容器内也会禁用签名
    - 这是为了避免在无法访问 `/dev/tty` 的容器环境中出现签名失败
 
-> **注意**：为了安全起见，建议使用 SSH 提交签名（如果 Git 服务器支持）。这样不需要配置 GPG 就能实现签名。
+> [!NOTE]
+>
+> 为了安全起见，建议使用 SSH 提交签名（如果 Git 服务器支持）。这样不需要配置 GPG 就能实现签名。
 
 #### 禁用 SSH/GPG 转发
 
