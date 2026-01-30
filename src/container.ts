@@ -1191,7 +1191,8 @@ exec /bin/bash`;
         # Configure git commit signing
         # Disable GPG signing by default to avoid passphrase prompts in non-interactive environments
         # Even if host .gitconfig has commit.gpgsign=true, override it unless explicitly enabled
-        if [ "${this.config.enableGpgSigning ? 'true' : 'false'}" = "true" ]; then
+        ENABLE_GPG_SIGNING="${this.config.enableGpgSigning === true ? 'true' : 'false'}" &&
+        if [ "$ENABLE_GPG_SIGNING" = "true" ]; then
           git config --global commit.gpgsign true
           echo "✓ GPG signing enabled"
         else

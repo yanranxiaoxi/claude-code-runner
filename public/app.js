@@ -960,8 +960,8 @@ ${syncData.summary}</textarea>
         <div class="git-actions" id="push-section" style="display: none;">
             <h3>🚀 Push to Remote</h3>
             <div class="branch-input">
-                <label for="branch-name">Branch name:</label>
-                <input type="text" id="branch-name" placeholder="claude-changes" value="claude-changes">
+                <label for="push-branch-name">Branch name:</label>
+                <input type="text" id="push-branch-name" placeholder="claude-changes" value="claude-changes">
             </div>
             <div>
                 <button onclick="pushChanges('${syncData.containerId}')" class="btn btn-success" id="push-btn">
@@ -1099,8 +1099,8 @@ function commitChanges(containerId) {
 }
 
 function pushChanges(containerId) {
-	const branchName
-		= document.getElementById('branch-name').value.trim() || 'claude-changes';
+	const branchNameInput = document.getElementById('push-branch-name');
+	const branchName = branchNameInput?.value?.trim() || 'claude-changes';
 
 	const btn = document.getElementById('push-btn');
 	btn.disabled = true;
@@ -1110,9 +1110,9 @@ function pushChanges(containerId) {
 
 	// Handle push result
 	socket.once('push-success', () => {
-		btn.textContent = '✓ Pushed to GitHub';
+		btn.textContent = '✓ Pushed to Remote';
 		btn.style.background = '#238636';
-		updateStatus('connected', `✓ Changes pushed to remote ${branchName}`);
+		updateStatus('connected', `✓ Changes pushed to remote: ${branchName}`);
 
 		// Clear the changes tab after successful push
 		setTimeout(() => {
