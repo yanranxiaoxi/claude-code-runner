@@ -554,6 +554,19 @@ function initSocket() {
 	// Add general error handler
 	socket.on('error', (error) => {
 		console.error('[SOCKET] Socket error:', error);
+
+		// Handle container not found error gracefully
+		if (error.code === 'CONTAINER_NOT_FOUND') {
+			updateStatus('error', 'Container not found');
+			if (term && term.writeln) {
+				term.writeln('\r\n\x1B[1;33m⚠ This container no longer exists.\x1B[0m');
+				term.writeln('\x1B[1;33m  Please close this tab and use the new container tab.\x1B[0m\r\n');
+			}
+			containerId = null;
+		}
+		else {
+			updateStatus('error', `Error: ${error.message}`);
+		}
 	});
 
 	// Add disconnect handler with debug

@@ -195,6 +195,7 @@ claude-run clean --force  # 删除所有容器
 ```bash
 claude-run config
 ```
+
 #### `claude-run self-update`
 
 更新 Claude Code Runner 到最新版本：
@@ -205,6 +206,7 @@ claud-run update        # 别名
 ```
 
 此命令会自动将全局安装的包更新到 npm 上可用的最新版本。
+
 ### 配置
 
 创建一个 `claude-run.config.json` 文件（参考 `claude-run.config.example.json`）：

@@ -379,8 +379,18 @@ export class WebUIServer {
 					}
 				}
 				catch (error: any) {
-					console.error(chalk.red('Failed to attach to container:'), error);
-					socket.emit('error', { message: error.message });
+					// Container not found - likely an old browser tab trying to reconnect
+					if (error.statusCode === 404) {
+						console.log(chalk.yellow(`⚠ Client tried to attach to non-existent container ${containerId.substring(0, 12)} (old browser tab?)`));
+						socket.emit('error', {
+							message: 'Container not found. Please refresh the page or close this tab.',
+							code: 'CONTAINER_NOT_FOUND',
+						});
+					}
+					else {
+						console.error(chalk.red('Failed to attach to container:'), error);
+						socket.emit('error', { message: error.message });
+					}
 				}
 			});
 
