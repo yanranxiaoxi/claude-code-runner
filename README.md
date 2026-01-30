@@ -429,6 +429,8 @@ The container will use your host's SSH agent, so you don't need to enter the pas
 
 GPG keys from `~/.gnupg` are also automatically forwarded to the container. However, **GPG commit signing is disabled by default** to avoid passphrase prompts in non-interactive environments.
 
+**Important**: Even if your host `.gitconfig` has `commit.gpgsign = true`, GPG signing will be automatically disabled in the container (unless explicitly enabled). This prevents signing failures in containerized environments where `/dev/tty` is not accessible.
+
 **To enable GPG commit signing**, add this to your `claude-run.config.json`:
 
 ```json
@@ -437,7 +439,7 @@ GPG keys from `~/.gnupg` are also automatically forwarded to the container. Howe
 }
 ```
 
-> **Note**: GPG signing requires a GPG key without a passphrase, or proper GPG agent configuration. For security, consider using SSH commit signing instead.
+> **Note**: Enabling GPG signing requires a GPG key without a passphrase, or proper GPG agent configuration. For security, consider using SSH commit signing instead.
 
 #### Disabling SSH/GPG Forwarding
 

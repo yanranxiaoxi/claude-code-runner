@@ -449,6 +449,8 @@ claude-run  # SSH agent 会被转发到容器
 
 来自 `~/.gnupg` 的 GPG 密钥也会自动转发到容器。但是，**GPG 提交签名默认是禁用的**，以避免在非交互式环境中出现密码提示。
 
+**重要**：即使你的宿主机 `.gitconfig` 配置了 `commit.gpgsign = true`，容器内也会自动禁用 GPG 签名（除非你显式启用）。这是为了避免在无法访问 `/dev/tty` 的容器环境中出现签名失败。
+
 **要启用 GPG 提交签名**，在 `claude-run.config.json` 中添加：
 
 ```json
@@ -457,7 +459,7 @@ claude-run  # SSH agent 会被转发到容器
 }
 ```
 
-> **注意**：GPG 签名需要一个没有密码的 GPG 密钥，或正确配置 GPG agent。为了安全起见，建议考虑使用 SSH 提交签名。
+> **注意**：启用 GPG 签名需要一个没有密码的 GPG 密钥，或正确配置 GPG agent。为了安全起见，建议考虑使用 SSH 提交签名。
 
 #### 禁用 SSH/GPG 转发
 

@@ -1164,11 +1164,15 @@ exec /bin/bash`;
         git config --global --add safe.directory /workspace &&
         # Clean up macOS resource fork files in git pack directory
         find .git/objects/pack -name "._pack-*.idx" -type f -delete 2>/dev/null || true &&
-        # Configure git commit signing - disable GPG signing by default to avoid passphrase prompts
-        # Users can enable it by setting GIT_COMMIT_GPG_SIGN=true in environment
-        if [ -z "$GIT_COMMIT_GPG_SIGN" ] || [ "$GIT_COMMIT_GPG_SIGN" != "true" ]; then
+        # Configure git commit signing
+        # Disable GPG signing by default to avoid passphrase prompts in non-interactive environments
+        # Even if host .gitconfig has commit.gpgsign=true, override it unless explicitly enabled
+        if [ "${this.config.enableGpgSigning ? 'true' : 'false'}" = "true" ]; then
+          git config --global commit.gpgsign true
+          echo "✓ GPG signing enabled"
+        else
           git config --global commit.gpgsign false
-          echo "✓ GPG signing disabled (set GIT_COMMIT_GPG_SIGN=true to enable)"
+          echo "✓ GPG signing disabled (enable with enableGpgSigning: true in config)"
         fi &&
         # Start SSH agent if not already running and we have keys
         if [ -d "/home/claude/.ssh" ] && [ -z "$SSH_AUTH_SOCK" ]; then
