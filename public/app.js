@@ -977,12 +977,8 @@ ${syncData.summary}</textarea>
 
 function clearChangesTab() {
 	const container = document.getElementById('changes-container');
-	const noChanges = document.getElementById('no-changes');
 
-	// Show empty state
-	noChanges.style.display = 'block';
-
-	// Clear changes content but keep the empty state
+	// Clear changes content and show the empty state
 	container.innerHTML = `
         <div class="empty-state" id="no-changes">
             <h3 data-i18n="changes.noChangesTitle">${t('changes.noChangesTitle', 'No changes detected')}</h3>
@@ -1108,8 +1104,10 @@ function pushChanges(containerId) {
 
 	socket.emit('push-changes', { containerId, branchName });
 
-	// Handle push result
-	socket.once('push-success', () => {
+	// Handle push result with proper cleanup
+	const handlers = { success: null, error: null };
+
+	handlers.success = () => {
 		btn.textContent = '✓ Pushed to Remote';
 		btn.style.background = '#238636';
 		updateStatus('connected', `✓ Changes pushed to remote: ${branchName}`);
@@ -1118,14 +1116,23 @@ function pushChanges(containerId) {
 		setTimeout(() => {
 			clearChangesTab();
 		}, 3000);
-	});
 
-	socket.once('push-error', (error) => {
+		// Remove error handler to prevent it from firing
+		socket.off('push-error', handlers.error);
+	};
+
+	handlers.error = (error) => {
 		btn.disabled = false;
 		btn.textContent = 'Push to Remote';
 		alert(`Push failed: ${error.message}`);
 		updateStatus('error', `Push failed: ${error.message}`);
-	});
+
+		// Remove success handler to prevent it from firing
+		socket.off('push-success', handlers.success);
+	};
+
+	socket.once('push-success', handlers.success);
+	socket.once('push-error', handlers.error);
 }
 
 // Handle keyboard shortcuts
