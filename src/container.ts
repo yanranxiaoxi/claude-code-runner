@@ -621,7 +621,7 @@ exec claude --dangerously-skip-permissions' > /start-claude.sh && \\
 		const forwardSshAgent = this.config.forwardSshAgent !== false; // Default: true
 		const sshAuthSock = process.env.SSH_AUTH_SOCK;
 		if (forwardSshAgent && sshAuthSock && fs.existsSync(sshAuthSock)) {
-			volumes.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:ro`);
+			volumes.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:rw`);
 			console.log(chalk.blue('✓ SSH agent forwarding enabled'));
 		}
 

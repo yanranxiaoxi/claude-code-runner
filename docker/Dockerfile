@@ -142,6 +142,9 @@ RUN printf '%s\n' '#!/bin/bash' \
     '' \
     '# Set up SSH agent forwarding if socket is mounted' \
     'if [ -S "/tmp/.ssh-agent-sock" ]; then' \
+    '    # Ensure claude user can access the agent socket' \
+    '    chown claude:claude /tmp/.ssh-agent-sock 2>/dev/null || true' \
+    '    chmod 666 /tmp/.ssh-agent-sock 2>/dev/null || true' \
     '    export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock' \
     '    echo "export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock" >> /home/claude/.bashrc' \
     '    echo "✓ SSH agent forwarding enabled"' \
