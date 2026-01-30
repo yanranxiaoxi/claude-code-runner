@@ -410,6 +410,21 @@ claude-run  # SSH agent is forwarded to container
 
 The container will use your host's SSH agent, so you don't need to enter the passphrase again.
 
+> **Troubleshooting: SSH Agent Connection Failed**
+>
+> If running `ssh-add -l` inside the container shows "communication with agent failed":
+>
+> 1. **Verify host agent**: Ensure `ssh-add -l` works on your host machine
+> 2. **Check startup logs**: Look for "✓ SSH agent forwarding enabled via socat relay" when container starts
+> 3. **Fallback option**: Disable agent forwarding and use keys directly:
+>    ```json
+>    {
+>      "forwardSshAgent": false,
+>      "forwardSshKeys": true
+>    }
+>    ```
+>    (This may prompt for passphrase on first use if keys are password-protected)
+
 #### GPG Key Support
 
 GPG keys from `~/.gnupg` are also automatically forwarded to the container. However, **GPG commit signing is disabled by default** to avoid passphrase prompts in non-interactive environments.

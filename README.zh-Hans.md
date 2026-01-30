@@ -430,6 +430,21 @@ claude-run  # SSH agent 会被转发到容器
 
 容器将使用宿主机的 SSH agent，因此你无需再次输入密码。
 
+> **故障排除：SSH Agent 无法连接**
+>
+> 如果在容器内运行 `ssh-add -l` 显示 "communication with agent failed"：
+>
+> 1. **验证宿主机 agent**：确保宿主机上 `ssh-add -l` 能正常工作
+> 2. **检查启动日志**：容器启动时查看是否显示 "✓ SSH agent forwarding enabled via socat relay"
+> 3. **备用方案**：禁用 agent 转发，直接使用密钥：
+>    ```json
+>    {
+>      "forwardSshAgent": false,
+>      "forwardSshKeys": true
+>    }
+>    ```
+>    （如果密钥有密码保护,首次使用时可能需要输入密码）
+
 #### GPG 密钥支持
 
 来自 `~/.gnupg` 的 GPG 密钥也会自动转发到容器。但是，**GPG 提交签名默认是禁用的**，以避免在非交互式环境中出现密码提示。

@@ -20,6 +20,7 @@ RUN dnf install -y epel-release && dnf install -y \
     gnupg2 \
     inotify-tools \
     rsync \
+    socat \
     && dnf clean all
 
 # Install Node.js 24.x
@@ -142,12 +143,29 @@ RUN printf '%s\n' '#!/bin/bash' \
     '' \
     '# Set up SSH agent forwarding if socket is mounted' \
     'if [ -S "/tmp/.ssh-agent-sock" ]; then' \
-    '    # Ensure claude user can access the agent socket' \
-    '    chown claude:claude /tmp/.ssh-agent-sock 2>/dev/null || true' \
-    '    chmod 666 /tmp/.ssh-agent-sock 2>/dev/null || true' \
-    '    export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock' \
-    '    echo "export SSH_AUTH_SOCK=/tmp/.ssh-agent-sock" >> /home/claude/.bashrc' \
-    '    echo "✓ SSH agent forwarding enabled"' \
+    '    # Create a socket proxy that claude user can access' \
+    '    # Using socat to relay connections from claude'\''s socket to host'\''s socket' \
+    '    CLAUDE_SOCK="/tmp/.ssh-agent-sock-claude"' \
+    '    rm -f "$CLAUDE_SOCK"' \
+    '    ' \
+    '    # Start socat in background to relay socket connections' \
+    '    socat UNIX-LISTEN:"$CLAUDE_SOCK",fork,user=claude,group=claude,mode=0600 UNIX-CONNECT:/tmp/.ssh-agent-sock &' \
+    '    ' \
+    '    # Wait a moment for socat to start' \
+    '    sleep 0.5' \
+    '    ' \
+    '    # Test if the relay works' \
+    '    export SSH_AUTH_SOCK="$CLAUDE_SOCK"' \
+    '    if su - claude -c "SSH_AUTH_SOCK=$CLAUDE_SOCK ssh-add -l" >/dev/null 2>&1 || [ $? -eq 1 ]; then' \
+    '        # Agent is accessible via relay (exit code 0 = has keys, 1 = no keys but working)' \
+    '        echo "export SSH_AUTH_SOCK=$CLAUDE_SOCK" >> /home/claude/.bashrc' \
+    '        echo "✓ SSH agent forwarding enabled via socat relay"' \
+    '    else' \
+    '        # Relay failed, kill socat and warn' \
+    '        pkill -f "socat.*$CLAUDE_SOCK" 2>/dev/null || true' \
+    '        rm -f "$CLAUDE_SOCK"' \
+    '        echo "⚠ SSH agent socket mounted but relay failed - SSH keys will be used directly"' \
+    '    fi' \
     'fi' \
     '' \
     '# Copy git config if mounted' \
