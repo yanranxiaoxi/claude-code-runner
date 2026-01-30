@@ -492,6 +492,123 @@
       #language-selector:focus {
         border-color: #4caf50;
       }
+
+      /* Modal Styles */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(2px);
+      }
+
+      .modal-content {
+        background-color: #2d2d2d;
+        border-radius: 8px;
+        border: 1px solid #3e3e3e;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        animation: modalFadeIn 0.3s ease-out;
+      }
+
+      @keyframes modalFadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.9) translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 1.5rem 1.5rem 1rem;
+        border-bottom: 1px solid #3e3e3e;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #ffffff;
+      }
+
+      .modal-body {
+        padding: 1.5rem;
+        color: #d4d4d4;
+        line-height: 1.6;
+      }
+
+      .modal-steps {
+        background-color: #1e1e1e;
+        border-radius: 6px;
+        padding: 1rem;
+        margin: 1rem 0;
+        border: 1px solid #3e3e3e;
+      }
+
+      .code-block {
+        background-color: #1a1a1a;
+        border: 1px solid #404040;
+        border-radius: 4px;
+        padding: 0.5rem 0.75rem;
+        margin: 0.5rem 0;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.875rem;
+        color: #4caf50;
+      }
+
+      .modal-warning {
+        background-color: #2a1a0a;
+        border: 1px solid #ff8c42;
+        border-radius: 4px;
+        padding: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .modal-warning p {
+        margin: 0;
+        color: #ffcc80;
+        font-weight: 500;
+      }
+
+      .modal-footer {
+        padding: 1rem 1.5rem 1.5rem;
+        border-top: 1px solid #3e3e3e;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .modal-close-btn {
+        background-color: #4caf50;
+        color: #ffffff;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .modal-close-btn:hover {
+        background-color: #45a049;
+      }
+
+      .modal-close-btn:focus {
+        outline: 2px solid #4caf50;
+        outline-offset: 2px;
+      }
     </style>
   </head>
   <body>
@@ -640,6 +757,37 @@
               automatically when Claude modifies files.
             </p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Non-Git Warning Modal -->
+    <div id="non-git-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 data-i18n="nonGitWarning.title">⚠️ Important Setup Required</h2>
+        </div>
+        <div class="modal-body">
+          <p data-i18n="nonGitWarning.message">This session was started in a non-git directory. To save your changes permanently, you need to set up a remote repository:</p>
+          
+          <div class="modal-steps">
+            <p data-i18n="nonGitWarning.step1">1. Open a terminal and run:</p>
+            <div class="code-block">
+              <code data-i18n="nonGitWarning.command1">git remote add origin &lt;your-repo-url&gt;</code>
+            </div>
+            <div class="code-block">
+              <code data-i18n="nonGitWarning.command2">git push -u origin main</code>
+            </div>
+            
+            <p data-i18n="nonGitWarning.step2">2. Replace &lt;your-repo-url&gt; with your GitHub/GitLab repository URL.</p>
+          </div>
+          
+          <div class="modal-warning">
+            <p data-i18n="nonGitWarning.warning">Without this setup, changes will only exist in the container.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="modal-close-btn" class="modal-close-btn" data-i18n="nonGitWarning.close">Got it</button>
         </div>
       </div>
     </div>

@@ -78,5 +78,15 @@
 		"label": "语言",
 		"en": "English",
 		"zh-CN": "简体中文"
+	},
+	"nonGitWarning": {
+		"title": "⚠️ 需要重要设置",
+		"message": "此会话是在非 Git 目录中启动的。要永久保存您的更改，您需要设置远程仓库：",
+		"step1": "1. 打开终端并运行：",
+		"command1": "git remote add origin <your-repo-url>",
+		"command2": "git push -u origin main",
+		"step2": "2. 将 <your-repo-url> 替换为您的 Git 仓库 URL。",
+		"warning": "如果不进行此设置，更改将仅存在于容器内。",
+		"close": "知道了"
 	}
 }

@@ -78,5 +78,15 @@
 		"label": "Language",
 		"en": "English",
 		"zh-CN": "简体中文"
+	},
+	"nonGitWarning": {
+		"title": "⚠️ Important Setup Required",
+		"message": "This session was started in a non-git directory. To save your changes permanently, you need to set up a remote repository:",
+		"step1": "1. Open a terminal and run:",
+		"command1": "git remote add origin <your-repo-url>",
+		"command2": "git push -u origin main",
+		"step2": "2. Replace <your-repo-url> with your Git repository URL.",
+		"warning": "Without this setup, changes will only exist in the container.",
+		"close": "Got it"
 	}
 }

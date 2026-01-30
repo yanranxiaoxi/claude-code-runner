@@ -134,7 +134,7 @@ export class WebUIServer {
 					}
 
 					// Confirm attachment
-					socket.emit('attached', { containerId });
+					socket.emit('attached', { containerId, wasNonGitInit: false });
 
 					// Container attach doesn't support resize like exec does
 					// But we can try to send a resize sequence through stdin

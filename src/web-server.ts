@@ -35,6 +35,7 @@ export class WebUIServer {
 	private currentBranch: string = 'main';
 	private fileWatchers: Map<string, any> = new Map(); // container -> monitor (inotify stream or interval)
 	private containerCmd: string; // 'docker' or 'podman'
+	private wasNonGitInit: boolean = false;
 
 	constructor(docker: Docker, containerRuntime?: string) {
 		this.docker = docker;
@@ -364,7 +365,7 @@ export class WebUIServer {
 					}
 
 					// Confirm attachment
-					socket.emit('attached', { containerId });
+					socket.emit('attached', { containerId, wasNonGitInit: this.wasNonGitInit });
 
 					// Send initial resize after a small delay
 					if (session.exec && data.cols && data.rows) {
@@ -963,6 +964,10 @@ export class WebUIServer {
 	setRepoInfo(originalRepo: string, branch: string): void {
 		this.originalRepo = originalRepo;
 		this.currentBranch = branch;
+	}
+
+	setNonGitInit(wasInit: boolean): void {
+		this.wasNonGitInit = wasInit;
 	}
 
 	async stop(): Promise<void> {

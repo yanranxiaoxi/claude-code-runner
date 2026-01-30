@@ -23,6 +23,7 @@ export class ClaudeSandbox {
 	private ui: UIManager;
 	private webServer?: WebUIServer;
 	private containerRuntime: string;
+	private wasNonGitInit: boolean = false;
 
 	constructor(config: SandboxConfig) {
 		this.config = config;
@@ -168,6 +169,7 @@ export class ClaudeSandbox {
 
 			// Pass repo info to web server
 			this.webServer.setRepoInfo(process.cwd(), branchName);
+			this.webServer.setNonGitInit(this.wasNonGitInit);
 
 			const webUrl = await this.webServer.start();
 
@@ -233,6 +235,8 @@ export class ClaudeSandbox {
 					console.log(chalk.gray('    git remote add origin <your-repo-url>'));
 					console.log(chalk.gray('    git push -u origin main'));
 					console.log('');
+
+					this.wasNonGitInit = true;
 				}
 				catch (error) {
 					throw new Error(`Failed to initialize git repository: ${error}`);

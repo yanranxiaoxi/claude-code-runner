@@ -424,6 +424,11 @@ function initSocket() {
 			`Connected to ${data.containerId.substring(0, 12)}`,
 		);
 
+		// Check if this was initialized from a non-git directory
+		if (data.wasNonGitInit) {
+			showNonGitWarningModal();
+		}
+
 		// Don't clear terminal on attach - preserve existing content
 
 		// Send initial resize
@@ -674,6 +679,26 @@ function copySelection() {
 			.catch((err) => {
 				console.error('Failed to copy:', err);
 			});
+	}
+}
+
+// Modal functions
+function showNonGitWarningModal() {
+	const modal = document.getElementById('non-git-modal');
+	if (modal) {
+		modal.style.display = 'flex';
+		// Focus the close button for accessibility
+		const closeBtn = document.getElementById('modal-close-btn');
+		if (closeBtn) {
+			closeBtn.focus();
+		}
+	}
+}
+
+function hideNonGitWarningModal() {
+	const modal = document.getElementById('non-git-modal');
+	if (modal) {
+		modal.style.display = 'none';
 	}
 }
 
@@ -1155,4 +1180,30 @@ document.addEventListener('keydown', (e) => {
 			}
 		});
 	}
+});
+
+// Modal event listeners
+document.addEventListener('DOMContentLoaded', () => {
+	// Close modal when clicking the close button
+	const closeBtn = document.getElementById('modal-close-btn');
+	if (closeBtn) {
+		closeBtn.addEventListener('click', hideNonGitWarningModal);
+	}
+
+	// Close modal when clicking the overlay (outside the modal content)
+	const modal = document.getElementById('non-git-modal');
+	if (modal) {
+		modal.addEventListener('click', (e) => {
+			if (e.target === modal) {
+				hideNonGitWarningModal();
+			}
+		});
+	}
+
+	// Close modal when pressing ESC key
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+			hideNonGitWarningModal();
+		}
+	});
 });
