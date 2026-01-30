@@ -927,12 +927,16 @@ function updateChangesTab(syncData) {
 	};
 	const statsText
 		= diffStats.files > 0
-			? `${diffStats.files} file(s), +${diffStats.additions} -${diffStats.deletions}`
-			: 'No changes';
+			? I18n.t('changes.diffStats', {
+					files: diffStats.files,
+					additions: diffStats.additions,
+					deletions: diffStats.deletions,
+				})
+			: I18n.t('changes.noChangesTitle');
 
 	container.innerHTML = `
         <div class="changes-summary">
-            <strong>Changes Summary:</strong> ${syncData.summary}
+            <strong>${I18n.t('changes.changesSummary')}</strong> ${syncData.summary}
             <div class="diff-stats">📊 ${statsText}</div>
         </div>
         
@@ -941,7 +945,7 @@ function updateChangesTab(syncData) {
         </div>
         
         <div class="git-actions">
-            <h3>💾 Commit Changes</h3>
+            <h3>${I18n.t('changes.commitChanges')}</h3>
             <textarea 
                 id="commit-message" 
                 placeholder="Enter commit message..."
@@ -952,20 +956,20 @@ ${syncData.summary}</textarea>
             
             <div style="margin-bottom: 15px;">
                 <button onclick="commitChanges('${syncData.containerId}')" class="btn btn-primary" id="commit-btn">
-                    Commit Changes
+                    ${I18n.t('changes.commitButton')}
                 </button>
             </div>
         </div>
         
         <div class="git-actions" id="push-section" style="display: none;">
-            <h3>🚀 Push to Remote</h3>
+            <h3>${I18n.t('changes.pushToRemote')}</h3>
             <div class="branch-input">
-                <label for="push-branch-name">Branch name:</label>
+                <label for="push-branch-name">${I18n.t('changes.branchName')}</label>
                 <input type="text" id="push-branch-name" placeholder="claude-changes" value="claude-changes">
             </div>
             <div>
                 <button onclick="pushChanges('${syncData.containerId}')" class="btn btn-success" id="push-btn">
-                    Push to Remote
+                    ${I18n.t('changes.pushButton')}
                 </button>
             </div>
         </div>
@@ -1002,21 +1006,21 @@ function formatDiffForDisplay(diffData) {
 
 	// Show file status
 	if (diffData.status) {
-		lines.push('<div class="diff-line header">📄 File Status:</div>');
+		lines.push(`<div class="diff-line header">${I18n.t('changes.fileStatus')}</div>`);
 		diffData.status.split('\n').forEach((line) => {
 			if (line.trim()) {
 				const status = line.substring(0, 2);
 				const filename = line.substring(3);
 				let statusText = '';
 				if (status === '??')
-					statusText = 'New file';
+					statusText = I18n.t('changes.fileStatusNew');
 				else if (status === ' M' || status === 'M ' || status === 'MM')
-					statusText = 'Modified';
+					statusText = I18n.t('changes.fileStatusModified');
 				else if (status === ' D' || status === 'D ')
-					statusText = 'Deleted';
+					statusText = I18n.t('changes.fileStatusDeleted');
 				else if (status === 'A ' || status === 'AM')
-					statusText = 'Added';
-				else statusText = `Status: ${status}`;
+					statusText = I18n.t('changes.fileStatusAdded');
+				else statusText = I18n.t('changes.fileStatusUnknown', { status });
 
 				lines.push(
 					`<div class="diff-line context">  ${statusText}: ${filename}</div>`,
@@ -1028,7 +1032,7 @@ function formatDiffForDisplay(diffData) {
 
 	// Show diff
 	if (diffData.diff) {
-		lines.push('<div class="diff-line header">📝 Changes:</div>');
+		lines.push(`<div class="diff-line header">${I18n.t('changes.changes')}</div>`);
 		diffData.diff.split('\n').forEach((line) => {
 			let className = 'context';
 			if (line.startsWith('+'))
@@ -1047,7 +1051,7 @@ function formatDiffForDisplay(diffData) {
 	// Show untracked files
 	if (diffData.untrackedFiles && diffData.untrackedFiles.length > 0) {
 		lines.push('<div class="diff-line context"></div>');
-		lines.push('<div class="diff-line header">📁 New Files:</div>');
+		lines.push(`<div class="diff-line header">${I18n.t('changes.newFiles')}</div>`);
 		diffData.untrackedFiles.forEach((filename) => {
 			lines.push(`<div class="diff-line added">+ ${filename}</div>`);
 		});
@@ -1065,32 +1069,32 @@ function escapeHtml(text) {
 function commitChanges(containerId) {
 	const commitMessage = document.getElementById('commit-message').value.trim();
 	if (!commitMessage) {
-		alert('Please enter a commit message');
+		alert(I18n.t('changes.commitMessageRequired'));
 		return;
 	}
 
 	const btn = document.getElementById('commit-btn');
 	btn.disabled = true;
-	btn.textContent = 'Committing...';
+	btn.textContent = I18n.t('changes.committing');
 
 	socket.emit('commit-changes', { containerId, commitMessage });
 
 	// Handle commit result
 	socket.once('commit-success', () => {
-		btn.textContent = '✓ Committed';
+		btn.textContent = I18n.t('changes.committed');
 		btn.style.background = '#238636';
 
 		// Show push section
 		document.getElementById('push-section').style.display = 'block';
 
-		updateStatus('connected', '✓ Changes committed successfully');
+		updateStatus('connected', I18n.t('status.commitSuccess'));
 	});
 
 	socket.once('commit-error', (error) => {
 		btn.disabled = false;
-		btn.textContent = 'Commit Changes';
-		alert(`Commit failed: ${error.message}`);
-		updateStatus('error', `Commit failed: ${error.message}`);
+		btn.textContent = I18n.t('changes.commitButton');
+		alert(I18n.t('status.commitFailed').replace('{{message}}', error.message));
+		updateStatus('error', I18n.t('status.commitFailed').replace('{{message}}', error.message));
 	});
 }
 
@@ -1100,7 +1104,7 @@ function pushChanges(containerId) {
 
 	const btn = document.getElementById('push-btn');
 	btn.disabled = true;
-	btn.textContent = 'Pushing...';
+	btn.textContent = I18n.t('changes.pushing');
 
 	socket.emit('push-changes', { containerId, branchName });
 
@@ -1108,9 +1112,9 @@ function pushChanges(containerId) {
 	const handlers = { success: null, error: null };
 
 	handlers.success = () => {
-		btn.textContent = '✓ Pushed to Remote';
+		btn.textContent = I18n.t('changes.pushedToRemote');
 		btn.style.background = '#238636';
-		updateStatus('connected', `✓ Changes pushed to remote: ${branchName}`);
+		updateStatus('connected', I18n.t('status.pushSuccess').replace('{{branch}}', branchName));
 
 		// Clear the changes tab after successful push
 		setTimeout(() => {
@@ -1123,9 +1127,9 @@ function pushChanges(containerId) {
 
 	handlers.error = (error) => {
 		btn.disabled = false;
-		btn.textContent = 'Push to Remote';
-		alert(`Push failed: ${error.message}`);
-		updateStatus('error', `Push failed: ${error.message}`);
+		btn.textContent = I18n.t('changes.pushButton');
+		alert(I18n.t('status.pushFailed').replace('{{message}}', error.message));
+		updateStatus('error', I18n.t('status.pushFailed').replace('{{message}}', error.message));
 
 		// Remove success handler to prevent it from firing
 		socket.off('push-success', handlers.success);

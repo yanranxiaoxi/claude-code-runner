@@ -768,14 +768,16 @@ export class WebUIServer {
 				if (!installed) {
 					console.log(
 						chalk.red(
-							'  Could not install inotify-tools, falling back to basic monitoring',
+							'  Could not install inotify-tools, falling back to polling monitoring',
 						),
 					);
+					this.startPollingMonitoring(containerId);
 					return;
 				}
 			}
 			catch (error) {
 				console.log(chalk.red('  Could not install inotify-tools:', error));
+				this.startPollingMonitoring(containerId);
 				return;
 			}
 		}
@@ -793,6 +795,15 @@ export class WebUIServer {
 		});
 
 		const stream = await inotifyExec.start({ hijack: true, stdin: false });
+
+		let fallbackStarted = false;
+		const startFallback = () => {
+			if (fallbackStarted)
+				return;
+			fallbackStarted = true;
+			this.stopContinuousMonitoring(containerId);
+			this.startPollingMonitoring(containerId);
+		};
 
 		// Debounce sync to avoid too many rapid syncs
 		let syncTimeout: NodeJS.Timeout | null = null;
@@ -822,7 +833,14 @@ export class WebUIServer {
 				data = chunk;
 			}
 
-			const events = data.toString().trim().split('\n');
+			const output = data.toString();
+			if (output.includes('Couldn\'t initialize inotify') || output.includes('Too many open files')) {
+				console.log(chalk.yellow('[INOTIFY] Initialization failed, falling back to polling'));
+				startFallback();
+				return;
+			}
+
+			const events = output.trim().split('\n');
 			for (const event of events) {
 				if (event.trim()) {
 					console.log(chalk.gray(`[INOTIFY] ${event}`));
@@ -833,14 +851,36 @@ export class WebUIServer {
 
 		stream.on('error', (err: Error) => {
 			console.error(chalk.red('[INOTIFY] Stream error:'), err);
+			startFallback();
 		});
 
 		stream.on('end', () => {
 			console.log(chalk.yellow('[INOTIFY] Monitoring stopped'));
+			startFallback();
 		});
 
 		// Store the stream for cleanup
 		this.fileWatchers.set(containerId, { stream, exec: inotifyExec } as any);
+	}
+
+	private startPollingMonitoring(containerId: string): void {
+		console.log(
+			chalk.yellow(
+				`[MONITOR] Falling back to polling for container ${containerId.substring(0, 12)}`,
+			),
+		);
+
+		const interval = setInterval(async () => {
+			console.log(chalk.gray('[POLL] Syncing files from container...'));
+			try {
+				await this.performSync(containerId);
+			}
+			catch (error) {
+				console.error(chalk.red('[POLL] Sync failed:'), error);
+			}
+		}, 2000);
+
+		this.fileWatchers.set(containerId, interval as any);
 	}
 
 	private stopContinuousMonitoring(containerId: string): void {

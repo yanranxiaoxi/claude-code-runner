@@ -22,7 +22,28 @@
 	},
 	"changes": {
 		"noChangesTitle": "No changes detected",
-		"noChangesDescription": "Claude hasn't made any changes yet. Changes will appear here automatically when Claude modifies files."
+		"noChangesDescription": "Claude hasn't made any changes yet. Changes will appear here automatically when Claude modifies files.",
+		"changesSummary": "Changes Summary:",
+		"commitChanges": "💾 Commit Changes",
+		"commitMessage": "Enter commit message...",
+		"commitMessageRequired": "Please enter a commit message",
+		"commitButton": "Commit Changes",
+		"committing": "Committing...",
+		"committed": "✓ Committed",
+		"pushToRemote": "🚀 Push to Remote",
+		"branchName": "Branch name:",
+		"pushButton": "Push to Remote",
+		"pushing": "Pushing...",
+		"pushedToRemote": "✓ Pushed to Remote",
+		"diffStats": "{{files}} file(s), +{{additions}} -{{deletions}}",
+		"fileStatus": "📄 File Status:",
+		"changes": "📝 Changes:",
+		"newFiles": "📁 New Files:",
+		"fileStatusNew": "New file",
+		"fileStatusModified": "Modified",
+		"fileStatusDeleted": "Deleted",
+		"fileStatusAdded": "Added",
+		"fileStatusUnknown": "Status: {{status}}"
 	},
 	"status": {
 		"connected": "Connected",
@@ -40,7 +61,8 @@
 		"syncFailed": "Sync failed: {{message}}",
 		"commitSuccess": "✓ Changes committed successfully",
 		"commitFailed": "Commit failed: {{message}}",
-		"pushSuccess": "✓ Changes pushed to remote {{branch}}"
+		"pushSuccess": "✓ Changes pushed to remote {{branch}}",
+		"pushFailed": "Push failed: {{message}}"
 	},
 	"messages": {
 		"reconnecting": "Reconnecting...",

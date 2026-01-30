@@ -22,7 +22,28 @@
 	},
 	"changes": {
 		"noChangesTitle": "未检测到更改",
-		"noChangesDescription": "Claude 尚未进行任何更改。当 Claude 修改文件时，更改将自动显示在此处。"
+		"noChangesDescription": "Claude 尚未进行任何更改。当 Claude 修改文件时，更改将自动显示在此处。",
+		"changesSummary": "更改摘要:",
+		"commitChanges": "💾 提交更改",
+		"commitMessage": "输入提交信息...",
+		"commitMessageRequired": "请输入提交信息",
+		"commitButton": "提交更改",
+		"committing": "正在提交...",
+		"committed": "✓ 已提交",
+		"pushToRemote": "🚀 推送到远程",
+		"branchName": "分支名称:",
+		"pushButton": "推送到远程",
+		"pushing": "正在推送...",
+		"pushedToRemote": "✓ 已推送到远程",
+		"diffStats": "{{files}} 个文件，+{{additions}} -{{deletions}}",
+		"fileStatus": "📄 文件状态:",
+		"changes": "📝 更改内容:",
+		"newFiles": "📁 新文件:",
+		"fileStatusNew": "新文件",
+		"fileStatusModified": "已修改",
+		"fileStatusDeleted": "已删除",
+		"fileStatusAdded": "已添加",
+		"fileStatusUnknown": "状态: {{status}}"
 	},
 	"status": {
 		"connected": "已连接",
@@ -40,7 +61,8 @@
 		"syncFailed": "同步失败: {{message}}",
 		"commitSuccess": "✓ 更改已成功提交",
 		"commitFailed": "提交失败: {{message}}",
-		"pushSuccess": "✓ 更改已推送到远程分支 {{branch}}"
+		"pushSuccess": "✓ 更改已推送到远程分支 {{branch}}",
+		"pushFailed": "推送失败: {{message}}"
 	},
 	"messages": {
 		"reconnecting": "正在重新连接...",
