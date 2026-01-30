@@ -54,7 +54,7 @@ npm install -g claude-code-runner
 >
 > For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image (`ghcr.io/yanranxiaoxi/claude-code-runner:latest`) will be used automatically.
 
-Simply run in any git repository:
+Simply run in any directory:
 
 ```bash
 claude-run
@@ -66,6 +66,19 @@ This will:
 2. Start a Docker container with Claude Code
 3. Launch a web UI at `http://localhost:3456`
 4. Open your browser automatically
+
+> [!WARNING]
+>
+> **Non-Git Directory Support**
+>
+> If you run `claude-run` in a non-git directory, the tool will prompt you to initialize a git repository. If you agree, it will automatically run `git init`, create an initial commit, and start the container. **Important**: After initialization, you must manually set up a remote repository (e.g., on GitHub) and configure the upstream to save your changes. Use commands like:
+>
+> ```bash
+> git remote add origin <your-repo-url>
+> git push -u origin main
+> ```
+>
+> Without setting up the upstream, your changes will only exist locally in the container.
 
 > [!NOTE]
 >
@@ -82,6 +95,13 @@ This will:
 > This allows Claude Code to use your SSH keys without repeatedly prompting for the passphrase.
 
 ### Commands
+
+#### Shortcuts
+
+The following commands are shortcuts for `claude-run`:
+
+- `clauderun`
+- `ccrun`
 
 #### `claude-run` (default)
 

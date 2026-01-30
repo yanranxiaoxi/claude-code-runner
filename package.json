@@ -21,7 +21,9 @@
 	],
 	"main": "dist/index.js",
 	"bin": {
-		"claude-run": "./dist/cli.js"
+		"claude-run": "./dist/cli.js",
+		"clauderun": "./dist/cli.js",
+		"ccrun": "./dist/cli.js"
 	},
 	"publishConfig": {
 		"access": "public"

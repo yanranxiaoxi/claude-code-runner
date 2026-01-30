@@ -52,7 +52,7 @@ npm install -g claude-code-runner
 
 > **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false`。默认镜像（`ghcr.io/yanranxiaoxi/claude-code-runner:latest`）会自动使用。
 
-只需在任何 Git 仓库文件夹中运行：
+只需在任何目录中运行：
 
 ```bash
 claude-run
@@ -64,6 +64,19 @@ claude-run
 2. 启动一个包含 Claude Code 的 Docker 容器
 3. 在 `http://localhost:3456` 上启动 Web UI
 4. 自动打开浏览器
+
+> [!WARNING]
+>
+> **非 Git 目录支持**
+>
+> 如果你在非 Git 目录中运行 `claude-run`，工具会提示你初始化 Git 仓库。如果你同意，它会自动运行 `git init`，创建初始提交，并启动容器。**重要**：初始化后，你必须手动设置远程仓库（例如在 GitHub 上）并配置上游以保存更改。使用如下命令：
+>
+> ```bash
+> git remote add origin <你的仓库 URL>
+> git push -u origin main
+> ```
+>
+> 如果不设置上游，你的更改将仅存在于容器内的本地。
 
 > [!NOTE]
 >
@@ -100,6 +113,13 @@ claude-run
 > 将 `<YOUR_ANTHROPIC_AUTH_TOKEN>` 替换为你的实际令牌，`ANTHROPIC_BASE_URL` 替换为你的代理地址。
 
 ### 命令
+
+#### 快捷命令
+
+以下命令是 `claude-run` 的快捷方式：
+
+- `clauderun`
+- `ccrun`
 
 #### `claude-run` (默认)
 
