@@ -121,7 +121,7 @@ claude-run
 - `clauderun`
 - `ccrun`
 
-#### `claude-run` (默认)
+#### `claude-run`（默认）
 
 使用 Web UI 启动新容器（推荐）：
 
@@ -137,9 +137,9 @@ claude-run
 claude-run start [选项]
 
 选项:
-  -c, --config <path>    配置文件 (默认: ./claude-run.config.json)
+  -c, --config <path>    配置文件（默认: ./claude-run.config.json）
   -n, --name <name>      容器名称前缀
-  --no-web               禁用 Web UI (使用终端附加)
+  --no-web               禁用 Web UI（使用终端附加）
   --no-push              禁用自动分支推送
   --no-pr                禁用自动 PR 创建
 ```
@@ -168,7 +168,7 @@ claude-run list
 claude-run ls        # 别名
 
 选项:
-  -a, --all              显示所有容器 (包括已停止的)
+  -a, --all              显示所有容器（包括已停止的）
 ```
 
 #### `claude-run stop [container-id]`
@@ -196,7 +196,7 @@ claude-run logs abc123def456
 
 选项:
   -f, --follow           跟踪日志输出
-  -n, --tail <lines>     显示的行数 (默认: 50)
+  -n, --tail <lines>     显示的行数（默认: 50）
 ```
 
 #### `claude-run clean`
@@ -221,8 +221,8 @@ claude-run config
 更新 Claude Code Runner 到最新版本：
 
 ```bash
-claud-run self-update
-claud-run update        # 别名
+claude-run self-update
+claude-run update        # 别名
 ```
 
 此命令会自动将全局安装的包更新到 npm 上可用的最新版本。
@@ -276,16 +276,16 @@ claud-run update        # 别名
 
 - `dockerImage`: 要使用的基础 Docker 镜像 (默认: `claude-code-runner:latest`)
 - `buildImage`: 在本地构建镜像（默认：true）或从仓库拉取（设置为 false）
-- `dockerfile`: 自定义 Dockerfile 的路径 (可选)
+- `dockerfile`: 自定义 Dockerfile 的路径（可选）
 - `detached`: 在分离模式下运行容器
 - `autoPush`: 提交后自动推送分支
 - `autoCreatePR`: 自动创建拉取请求
 - `autoStartClaude`: 自动启动 Claude Code (默认: true)
 - `envFile`: 从文件加载环境变量 (例如 `.env`)
 - `environment`: 额外的环境变量
-- `setupCommands`: 容器启动后要运行的命令 (例如安装依赖)
-- `volumes`: 旧版卷挂载 (字符串格式)
-- `mounts`: 现代挂载配置 (对象格式)
+- `setupCommands`: 容器启动后要运行的命令（例如安装依赖）
+- `volumes`: 旧版卷挂载（字符串格式）
+- `mounts`: 现代挂载配置（对象格式）
 - `allowedTools`: Claude 工具权限 (默认: 全部)
 - `maxThinkingTokens`: Claude 的最大思考令牌数
 - `bashTimeout`: bash 命令超时时间（毫秒）
@@ -553,7 +553,7 @@ Claude Code Runner 会自动发现并转发：
 
 **Claude 凭证：**
 
-- Anthropic API 密钥 (`ANTHROPIC_API_KEY`)
+- Anthropic API 密钥（`ANTHROPIC_API_KEY`）
 - macOS 钥匙串凭证（Claude Code）
 - AWS Bedrock 凭证
 - Google Vertex 凭证

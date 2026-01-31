@@ -740,7 +740,7 @@ function updateGitInfo(data) {
 			branchLink.textContent = data.currentBranch;
 			branchLink.style.color = 'inherit';
 			branchLink.style.textDecoration = 'none';
-			branchLink.title = `View ${data.currentBranch} branch on GitHub`;
+			branchLink.title = `View ${data.currentBranch} branch on Git web page`;
 			branchLink.addEventListener('mouseenter', () => {
 				branchLink.style.textDecoration = 'underline';
 			});

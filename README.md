@@ -202,8 +202,8 @@ claude-run config
 Update Claude Code Runner to the latest version:
 
 ```bash
-claud-run self-update
-claud-run update        # alias
+claude-run self-update
+claude-run update        # alias
 ```
 
 This command will automatically update the globally installed package to the latest version available on npm.
