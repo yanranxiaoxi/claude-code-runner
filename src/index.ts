@@ -5,6 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import chalk from 'chalk';
 import Docker from 'dockerode';
+import inquirer from 'inquirer';
 import { simpleGit } from 'simple-git';
 import { ContainerManager } from './container';
 import { CredentialManager } from './credentials';
@@ -45,6 +46,13 @@ export class ClaudeSandbox {
 
 	async run(): Promise<void> {
 		try {
+			// Check for existing containers first
+			const existingContainer = await this.checkExistingContainers();
+			if (existingContainer) {
+				// User chose to reconnect to existing container
+				return;
+			}
+
 			// Verify we're in a git repository
 			await this.verifyGitRepo();
 
@@ -325,6 +333,139 @@ export class ClaudeSandbox {
 		await this.containerManager.cleanup();
 		if (this.webServer) {
 			await this.webServer.stop();
+		}
+	}
+
+	/**
+	 * Check for existing running containers from the same project
+	 * Returns true if user chooses to reconnect, false otherwise
+	 */
+	private async checkExistingContainers(): Promise<boolean> {
+		// Skip check if configured
+		if (this.config.skipReconnectCheck) {
+			return false;
+		}
+
+		try {
+			// Get all running containers
+			const containers = await this.docker.listContainers({ all: false });
+
+			if (containers.length === 0) {
+				return false;
+			}
+
+			// Filter containers with claude-code-runner prefix
+			const workDir = process.cwd();
+			const repoName = path.basename(workDir);
+			const matchingContainers = [];
+
+			for (const container of containers) {
+				// Check if container name starts with claude-code-runner
+				const containerName = container.Names[0] || '';
+				if (!containerName.includes('claude-code-runner')) {
+					continue;
+				}
+
+				try {
+					const containerInfo = await this.docker.getContainer(container.Id).inspect();
+
+					// Check container labels for repo name
+					const labels = containerInfo.Config.Labels || {};
+					const containerRepoName = labels['com.claude.runner.repo'];
+
+					// Only include containers with matching repo label
+					if (containerRepoName === repoName) {
+						matchingContainers.push({
+							id: container.Id,
+							name: containerName.substring(1),
+							state: container.State,
+							status: container.Status,
+						});
+					}
+				}
+				catch {
+					// Skip containers we can't inspect
+					continue;
+				}
+			}
+
+			if (matchingContainers.length === 0) {
+				return false;
+			}
+
+			console.log('');
+			console.log(chalk.yellow(`Found ${matchingContainers.length} existing container(s) for this project:`));
+			console.log('');
+
+			// Display matching containers
+			matchingContainers.forEach((c, idx) => {
+				const state = c.state === 'running' ? chalk.green('● Running') : chalk.gray('○ Stopped');
+				console.log(`  ${idx + 1}. ${chalk.cyan(c.name)} - ${state} (${c.status})`);
+			});
+			console.log('');
+
+			// Ask user if they want to reconnect
+			const { action } = await inquirer.prompt([
+				{
+					type: 'list',
+					name: 'action',
+					message: 'Do you want to reconnect to an existing container?',
+					choices: [
+						{ name: 'Create a new container (recommended)', value: 'new', short: 'New container' },
+						{ name: 'Select container to reconnect', value: 'reconnect', short: 'Reconnect' },
+					],
+					default: 'new',
+				},
+			]);
+
+			if (action === 'new') {
+				console.log(chalk.blue('Will create a new container...'));
+				console.log('');
+				return false;
+			}
+
+			// User wants to reconnect - let them select which container
+			const { containerIndex } = await inquirer.prompt([
+				{
+					type: 'list',
+					name: 'containerIndex',
+					message: 'Select a container to reconnect:',
+					choices: matchingContainers.map((c, idx) => ({
+						name: `${c.name} - ${c.status}`,
+						value: idx,
+					})),
+				},
+			]);
+
+			const selectedContainer = matchingContainers[containerIndex];
+			const containerId = selectedContainer.id;
+
+			console.log(chalk.blue(`Reconnecting to container: ${selectedContainer.name}...`));
+
+			// Start web UI
+			this.webServer = new WebUIServer(this.docker, this.containerRuntime);
+			this.webServer.setRepoInfo(process.cwd(), '');
+			this.webServer.setNonGitInit(this.wasNonGitInit);
+
+			const webUrl = await this.webServer.start();
+			const fullUrl = `${webUrl}?container=${containerId}`;
+
+			await this.webServer.openInBrowser(fullUrl);
+
+			console.log(chalk.green(`\n✓ Reconnected to container: ${containerId.substring(0, 12)}`));
+			console.log(chalk.green(`✓ Web UI available at: ${fullUrl}`));
+			console.log(chalk.yellow('Keep this terminal open to maintain the session'));
+			console.log('');
+
+			// Keep the process running
+			await new Promise(() => {});
+
+			return true;
+		}
+		catch (error) {
+			// If there's an error checking containers, just continue with starting a new one
+			console.log(chalk.gray('Note: Could not check for existing containers, will create a new one'));
+			return false;
 		}
 	}
 }

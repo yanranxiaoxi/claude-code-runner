@@ -269,7 +269,7 @@ export class ContainerManager {
 	private async createContainer(
 		containerConfig: any,
 	): Promise<Docker.Container> {
-		const { credentials, workDir } = containerConfig;
+		const { credentials, workDir, repoName } = containerConfig;
 
 		// Prepare environment variables
 		const env = this.prepareEnvironment(credentials);
@@ -284,6 +284,11 @@ export class ContainerManager {
 				this.config.containerPrefix || 'claude-code-runner'
 			}-${Date.now()}`,
 			Env: env,
+			Labels: {
+				'com.claude.runner.repo': repoName,
+				'com.claude.runner.workdir': workDir,
+				'com.claude.runner.version': '__PACKAGE_VERSION__',
+			},
 			HostConfig: {
 				Binds: volumes,
 				AutoRemove: false,

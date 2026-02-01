@@ -174,6 +174,11 @@ program
 		'Start with \'claude\' or \'bash\' shell',
 		/^(claude|bash)$/i,
 	)
+	.option(
+		'--skip-reconnect-check',
+		'Skip checking for existing containers and always create a new one',
+		false,
+	)
 	.action(async (options) => {
 		console.log(chalk.blue('🚀 Starting Claude Runner...'));
 
@@ -181,6 +186,9 @@ program
 		config.includeUntracked = false;
 		if (options.shell) {
 			config.defaultShell = options.shell.toLowerCase();
+		}
+		if (options.skipReconnectCheck) {
+			config.skipReconnectCheck = true;
 		}
 
 		const sandbox = new ClaudeSandbox(config);
@@ -217,6 +225,11 @@ program
 		'Start with \'claude\' or \'bash\' shell',
 		/^(claude|bash)$/i,
 	)
+	.option(
+		'--skip-reconnect-check',
+		'Skip checking for existing containers and always create a new one',
+		false,
+	)
 	.action(async (options) => {
 		console.log(chalk.blue('🚀 Starting new Claude Runner container...'));
 
@@ -230,6 +243,9 @@ program
 		config.prNumber = options.pr;
 		if (options.shell) {
 			config.defaultShell = options.shell.toLowerCase();
+		}
+		if (options.skipReconnectCheck) {
+			config.skipReconnectCheck = true;
 		}
 
 		const sandbox = new ClaudeSandbox(config);

@@ -27,6 +27,7 @@ export interface SandboxConfig {
 	remoteBranch?: string;
 	prNumber?: string;
 	dockerSocketPath?: string;
+	skipReconnectCheck?: boolean; // Default: false - check for existing containers
 	// SSH/GPG configuration
 	forwardSshKeys?: boolean; // Default: true - forward ~/.ssh to container
 	forwardGpgKeys?: boolean; // Default: true - forward ~/.gnupg to container
