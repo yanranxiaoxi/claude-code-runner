@@ -6,5 +6,6 @@
 /node_modules/
 /.env
 /claude-run.config.json
+.DS_Store
 .eslintcache
 debug.log
