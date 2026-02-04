@@ -641,11 +641,47 @@ export class ContainerManager {
 			// Create tar archive using git archive for tracked files + untracked files
 			const tarFile = `/tmp/claude-runner-${Date.now()}.tar`;
 
-			// First create archive of tracked files using git archive
-			execSync(`git archive --format=tar -o "${tarFile}" HEAD`, {
-				cwd: workDir,
-				stdio: 'pipe',
-			});
+			// Check if the repository has any commits (HEAD exists)
+			let hasCommits = false;
+			try {
+				execSync('git rev-parse --verify HEAD', {
+					cwd: workDir,
+					stdio: 'pipe',
+				});
+				hasCommits = true;
+			}
+			catch {
+				// No commits yet, HEAD doesn't exist
+				hasCommits = false;
+			}
+
+			// Create archive of tracked files
+			if (hasCommits && trackedFiles.length > 0) {
+				// Use git archive for repositories with commits
+				execSync(`git archive --format=tar -o "${tarFile}" HEAD`, {
+					cwd: workDir,
+					stdio: 'pipe',
+				});
+			}
+			else if (trackedFiles.length > 0) {
+				// Use tar for repositories without commits
+				const fileListPath = `/tmp/claude-runner-tracked-${Date.now()}.txt`;
+				fs.writeFileSync(fileListPath, trackedFiles.join('\n'));
+
+				execSync(`tar -cf "${tarFile}" --files-from="${fileListPath}"`, {
+					cwd: workDir,
+					stdio: 'pipe',
+				});
+
+				fs.unlinkSync(fileListPath);
+			}
+			else {
+				// No tracked files, create an empty tar archive
+				execSync(`tar -cf "${tarFile}" -T /dev/null`, {
+					cwd: workDir,
+					stdio: 'pipe',
+				});
+			}
 
 			// Add untracked files if any
 			if (untrackedFiles.length > 0) {
