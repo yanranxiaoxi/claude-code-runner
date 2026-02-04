@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import type { CodeRunner } from './types';
 import { execSync } from 'node:child_process';
 import https from 'node:https';
+import path from 'node:path';
 import process from 'node:process';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -10,6 +12,7 @@ import ora from 'ora';
 import { loadConfig } from './config';
 import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-config';
 import { ClaudeSandbox } from './index';
+import { CODE_RUNNERS } from './types';
 import { WebUIServer } from './web-server';
 
 // Package info - injected at build time
@@ -159,7 +162,7 @@ async function selectContainer(containers: any[]): Promise<string | null> {
 
 program
 	.name('claude-run')
-	.description('Run Claude Code in isolated Docker containers')
+	.description('Run Claude Code or OpenCode in isolated Docker containers')
 	.version(currentVersion, '-v, --version', 'Display version number');
 
 // Check for updates before running any command
@@ -167,12 +170,39 @@ program.hook('preAction', async () => {
 	await checkForUpdates();
 });
 
+// Helper to detect runner from command name
+function getRunnerFromCommandName(): CodeRunner | undefined {
+	const commandName = path.basename(process.argv[1] || '');
+	// OpenCode aliases
+	if (commandName === 'ocrun' || commandName === 'opencoderun' || commandName === 'opencode-run') {
+		return 'opencode';
+	}
+	// Claude aliases (claude-run, ccrun, clauderun) - return undefined to use config default
+	return undefined;
+}
+
+// Helper to validate and get code runner
+function validateCodeRunner(runner: string | undefined): CodeRunner | undefined {
+	if (!runner)
+		return undefined;
+	const lowerRunner = runner.toLowerCase();
+	if (lowerRunner === 'claude' || lowerRunner === 'opencode') {
+		return lowerRunner as CodeRunner;
+	}
+	console.error(chalk.red(`Invalid code runner: ${runner}. Valid options are: claude, opencode`));
+	process.exit(1);
+}
+
 // Default command (always web UI)
 program
 	.option(
 		'--shell <shell>',
-		'Start with \'claude\' or \'bash\' shell',
-		/^(claude|bash)$/i,
+		'Start with \'claude\', \'opencode\', or \'bash\' shell',
+		/^(claude|opencode|bash)$/i,
+	)
+	.option(
+		'--runner <runner>',
+		'Code runner to use: \'claude\' or \'opencode\' (overrides config)',
 	)
 	.option(
 		'--skip-reconnect-check',
@@ -180,16 +210,24 @@ program
 		false,
 	)
 	.action(async (options) => {
-		console.log(chalk.blue('🚀 Starting Claude Runner...'));
+		// Priority: CLI flag > config file > command name default
+		const cliRunner = validateCodeRunner(options.runner);
+		const commandRunner = getRunnerFromCommandName();
 
 		const config = await loadConfig('./claude-run.config.json');
 		config.includeUntracked = false;
-		if (options.shell) {
-			config.defaultShell = options.shell.toLowerCase();
-		}
+
+		// Apply runner priority: CLI > command name > config file
+		const finalRunner = cliRunner || commandRunner || config.codeRunner || 'claude';
+		config.codeRunner = finalRunner;
+		config.defaultShell = options.shell?.toLowerCase() || finalRunner;
+
 		if (options.skipReconnectCheck) {
 			config.skipReconnectCheck = true;
 		}
+
+		const runnerConfig = CODE_RUNNERS[finalRunner];
+		console.log(chalk.blue(`🚀 Starting ${runnerConfig.displayName} Runner...`));
 
 		const sandbox = new ClaudeSandbox(config);
 		await sandbox.run();
@@ -198,7 +236,7 @@ program
 // Start command - explicitly start a new container
 program
 	.command('start')
-	.description('Start a new Claude Runner container')
+	.description('Start a new Claude/OpenCode Runner container')
 	.option(
 		'-c, --config <path>',
 		'Configuration file',
@@ -222,8 +260,12 @@ program
 	.option('--pr <number>', 'Checkout a specific PR by number')
 	.option(
 		'--shell <shell>',
-		'Start with \'claude\' or \'bash\' shell',
-		/^(claude|bash)$/i,
+		'Start with \'claude\', \'opencode\', or \'bash\' shell',
+		/^(claude|opencode|bash)$/i,
+	)
+	.option(
+		'--runner <runner>',
+		'Code runner to use: \'claude\' or \'opencode\' (overrides config)',
 	)
 	.option(
 		'--skip-reconnect-check',
@@ -231,7 +273,9 @@ program
 		false,
 	)
 	.action(async (options) => {
-		console.log(chalk.blue('🚀 Starting new Claude Runner container...'));
+		// Priority: CLI flag > config file > command name default
+		const cliRunner = validateCodeRunner(options.runner);
+		const commandRunner = getRunnerFromCommandName();
 
 		const config = await loadConfig(options.config);
 		config.containerPrefix = options.name || config.containerPrefix;
@@ -241,12 +285,18 @@ program
 		config.targetBranch = options.branch;
 		config.remoteBranch = options.remoteBranch;
 		config.prNumber = options.pr;
-		if (options.shell) {
-			config.defaultShell = options.shell.toLowerCase();
-		}
+
+		// Apply runner priority: CLI > command name > config file
+		const finalRunner = cliRunner || commandRunner || config.codeRunner || 'claude';
+		config.codeRunner = finalRunner;
+		config.defaultShell = options.shell?.toLowerCase() || finalRunner;
+
 		if (options.skipReconnectCheck) {
 			config.skipReconnectCheck = true;
 		}
+
+		const runnerConfig = CODE_RUNNERS[finalRunner];
+		console.log(chalk.blue(`🚀 Starting new ${runnerConfig.displayName} Runner container...`));
 
 		const sandbox = new ClaudeSandbox(config);
 		await sandbox.run();

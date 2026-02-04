@@ -6,10 +6,11 @@
 	"autoPush": true,
 	"autoCreatePR": true,
 	"autoStartClaude": true,
+	"codeRunner": "claude",
+	"defaultShell": "claude",
 	"envFile": ".env",
 	"environment": {
 		"NODE_ENV": "development"
-
 	},
 	"setupCommands": ["npm install", "npm run build"],
 	"volumes": [],

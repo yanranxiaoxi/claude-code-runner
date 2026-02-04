@@ -1,5 +1,5 @@
 import type Docker from 'dockerode';
-import type { Credentials, SandboxConfig } from './types';
+import type { CodeRunner, Credentials, SandboxConfig } from './types';
 import { Buffer } from 'node:buffer';
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -8,6 +8,7 @@ import path from 'node:path';
 import process from 'node:process';
 import chalk from 'chalk';
 import tarStream from 'tar-stream';
+import { CODE_RUNNERS } from './types';
 
 export class ContainerManager {
 	private docker: Docker;
@@ -1054,36 +1055,12 @@ export class ContainerManager {
 		// Determine what to show in the web UI
 		const defaultShell = this.config.defaultShell || 'claude';
 
-		// Startup script that keeps session alive
-		const startupScript
-			= defaultShell === 'claude'
-				? `#!/bin/bash
-# Ensure claude is in PATH
-export PATH="$HOME/.local/bin:$PATH"
+		// Get the code runner configuration
+		const codeRunner: CodeRunner = this.config.codeRunner || 'claude';
+		const runnerConfig = CODE_RUNNERS[codeRunner];
 
-echo "🚀 Starting Claude Code..."
-echo "Press Ctrl+C to drop to bash shell"
-echo ""
-
-# Run Claude but don't replace the shell process
-claude --dangerously-skip-permissions
-
-# After Claude exits, drop to bash
-echo ""
-echo "Claude exited. You're now in bash shell."
-echo "Type 'claude --dangerously-skip-permissions' to restart Claude"
-echo "Type 'exit' to end the session"
-echo ""
-exec /bin/bash`
-				: `#!/bin/bash
-# Ensure claude is in PATH
-export PATH="$HOME/.local/bin:$PATH"
-
-echo "Welcome to Claude Code Sandbox!"
-echo "Type 'claude --dangerously-skip-permissions' to start Claude Code"
-echo "Type 'exit' to end the session"
-echo ""
-exec /bin/bash`;
+		// Generate startup script based on the code runner
+		const startupScript = this.generateStartupScript(defaultShell, runnerConfig);
 
 		const setupExec = await container.exec({
 			Cmd: [
@@ -1252,6 +1229,46 @@ EOF
 
 			console.log(chalk.green('✓ All setup commands completed'));
 		}
+	}
+
+	// Generate startup script based on code runner configuration
+	private generateStartupScript(
+		defaultShell: string,
+		runnerConfig: { name: string; displayName: string; command: string; dangerousFlag: string; pathSetup: string },
+	): string {
+		const pathSetup = runnerConfig.pathSetup ? `${runnerConfig.pathSetup}\n` : '';
+		const runnerCommand = `${runnerConfig.command} ${runnerConfig.dangerousFlag}`;
+
+		// If shell is 'bash', show welcome message with instructions for both runners
+		if (defaultShell === 'bash') {
+			return `#!/bin/bash
+${pathSetup}
+echo "Welcome to Code Runner Sandbox!"
+echo "Available commands:"
+echo "  - Type 'claude --dangerously-skip-permissions' to start Claude Code"
+echo "  - Type 'opencode --dangerously-skip-permissions' to start OpenCode"
+echo "  - Type 'exit' to end the session"
+echo ""
+exec /bin/bash`;
+		}
+
+		// Auto-start the configured code runner
+		return `#!/bin/bash
+${pathSetup}
+echo "🚀 Starting ${runnerConfig.displayName}..."
+echo "Press Ctrl+C to drop to bash shell"
+echo ""
+
+# Run the code runner but don't replace the shell process
+${runnerCommand}
+
+# After code runner exits, drop to bash
+echo ""
+echo "${runnerConfig.displayName} exited. You're now in bash shell."
+echo "Type '${runnerCommand}' to restart ${runnerConfig.displayName}"
+echo "Type 'exit' to end the session"
+echo ""
+exec /bin/bash`;
 	}
 
 	async cleanup(): Promise<void> {

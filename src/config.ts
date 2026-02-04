@@ -1,4 +1,4 @@
-import type { SandboxConfig } from './types';
+import type { CodeRunner, SandboxConfig } from './types';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +10,7 @@ const DEFAULT_CONFIG: SandboxConfig = {
 	autoCreatePR: true,
 	autoStartClaude: true,
 	defaultShell: 'claude', // Default to Claude mode for backward compatibility
+	codeRunner: 'claude', // Default to Claude Code
 	claudeConfigPath: path.join(os.homedir(), '.claude.json'),
 	setupCommands: [], // Example: ["npm install", "pip install -r requirements.txt"]
 	allowedTools: ['*'], // All tools allowed in sandbox
@@ -17,6 +18,19 @@ const DEFAULT_CONFIG: SandboxConfig = {
 	// maxThinkingTokens: 100000,
 	// bashTimeout: 600000, // 10 minutes
 };
+
+// Helper to determine code runner from shell setting for backward compatibility
+function resolveCodeRunner(config: SandboxConfig): CodeRunner {
+	// If codeRunner is explicitly set, use it
+	if (config.codeRunner) {
+		return config.codeRunner;
+	}
+	// For backward compatibility: if defaultShell is 'claude' or 'opencode', derive codeRunner
+	if (config.defaultShell === 'opencode') {
+		return 'opencode';
+	}
+	return 'claude';
+}
 
 export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 	try {
@@ -29,6 +43,14 @@ export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 			...DEFAULT_CONFIG,
 			...userConfig,
 		};
+
+		// Resolve code runner for backward compatibility
+		finalConfig.codeRunner = resolveCodeRunner(finalConfig);
+
+		// Sync defaultShell with codeRunner if not explicitly set to 'bash'
+		if (finalConfig.defaultShell !== 'bash') {
+			finalConfig.defaultShell = finalConfig.codeRunner;
+		}
 
 		// If buildImage is false and dockerImage wasn't explicitly set, use official image
 		if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {

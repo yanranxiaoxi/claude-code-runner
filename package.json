@@ -1,6 +1,6 @@
 {
 	"name": "claude-code-runner",
-	"version": "0.2.13",
+	"version": "0.3.0",
 	"description": "Run Claude Code as an autonomous agent in Docker & Podman containers",
 	"author": "XiaoXi <admin@soraharu.com>",
 	"license": "MIT",
@@ -17,13 +17,17 @@
 		"ai",
 		"docker",
 		"runner",
-		"automation"
+		"automation",
+		"opencode"
 	],
 	"main": "dist/index.js",
 	"bin": {
 		"claude-run": "./dist/cli.js",
 		"clauderun": "./dist/cli.js",
-		"ccrun": "./dist/cli.js"
+		"ccrun": "./dist/cli.js",
+		"ocrun": "./dist/cli.js",
+		"opencoderun": "./dist/cli.js",
+		"opencode-run": "./dist/cli.js"
 	},
 	"publishConfig": {
 		"access": "public"

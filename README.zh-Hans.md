@@ -7,11 +7,24 @@
 > - 这项工作处于 alpha 阶段，可能存在安全问题，使用风险自负。
 > - 如有疑问，请发送邮件至 [admin@soraharu.com](mailto:admin@soraharu.com)。
 
-在 Docker 容器内将 Claude Code 作为自主代理运行，并自动集成 GitHub。安全地绕过所有权限提示。
+在 Docker 容器内将 Claude Code 或 OpenCode 作为自主代理运行，并自动集成 GitHub。安全地绕过所有权限提示。
+
+## 支持的代码运行器
+
+Claude Code Runner 支持多个 AI 编程助手：
+
+| 运行器 | 命令 | 描述 |
+|--------|------|------|
+| **Claude Code** | `claude-run` | Anthropic 官方的 Claude Code CLI |
+| **OpenCode** | `claude-run --runner opencode` | 支持多提供商的开源替代方案 |
+
+你可以通过以下方式切换运行器：
+- **CLI 参数**: `--runner claude` 或 `--runner opencode`
+- **配置文件**: 在 `claude-run.config.json` 中设置 `"codeRunner": "opencode"`
 
 ## 为什么选择 Claude Code Runner？
 
-Claude Code Runner 的主要目标是通过允许 Claude Code 在没有权限提示的情况下执行，从而实现 **完全异步的智能体工作流**。通过在隔离的 Docker 容器中使用 `--dangerously-skip-permissions` 标志运行 Claude，Claude 可以：
+Claude Code Runner 的主要目标是通过允许 Claude Code 或 OpenCode 在没有权限提示的情况下执行，从而实现 **完全异步的智能体工作流**。通过在隔离的 Docker 容器中使用 `--dangerously-skip-permissions` 标志运行 AI 助手，AI 可以：
 
 - 无需请求权限即可立即执行任何命令
 - 自主进行代码更改
@@ -19,14 +32,14 @@ Claude Code Runner 的主要目标是通过允许 Claude Code 在没有权限提
 - 创建提交并管理 Git 操作
 - 在不打断用户的情况下持续工作
 
-通过 **基于浏览器的终端** 访问 Claude，让你可以在处理其他任务的同时监控 AI 助手并与之交互。这创建了一个真正自主的开发助手，类似于 [OpenAI Codex](https://chatgpt.com/codex) 或 [Google Jules](https://jules.dev)，但在你的本地机器上运行，并且完全可控。
+通过 **基于浏览器的终端** 访问代码助手，让你可以在处理其他任务的同时监控 AI 助手并与之交互。这创建了一个真正自主的开发助手，类似于 [OpenAI Codex](https://chatgpt.com/codex) 或 [Google Jules](https://jules.dev)，但在你的本地机器上运行，并且完全可控。
 
 ## 概述
 
-Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code，为 AI 辅助开发提供安全的环境。它会自动：
+Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code 或 OpenCode，为 AI 辅助开发提供安全的环境。它会自动：
 
 - 为每个会话创建新的 Git 分支
-- 监控 Claude 所做的提交
+- 监控 AI 助手所做的提交
 - 提供交互式的更改审查
 - 安全地转发凭证
 - 启用推送/PR 创建工作流
@@ -120,6 +133,9 @@ claude-run
 
 - `clauderun`
 - `ccrun`
+- `ocrun`（OpenCode 别名）
+- `opencoderun`（OpenCode 别名）
+- `opencode-run`（OpenCode 别名）
 
 #### `claude-run`（默认）
 
@@ -127,6 +143,20 @@ claude-run
 
 ```bash
 claude-run
+```
+
+#### 使用 OpenCode
+
+要使用 OpenCode 而不是 Claude Code：
+
+```bash
+# 通过 CLI 参数
+claude-run --runner opencode
+
+# 或使用 OpenCode 别名
+ocrun
+opencoderun
+opencode-run
 ```
 
 #### `claude-run start`
@@ -139,6 +169,8 @@ claude-run start [选项]
 选项:
   -c, --config <path>    配置文件（默认: ./claude-run.config.json）
   -n, --name <name>      容器名称前缀
+  --runner <runner>      要使用的代码运行器: 'claude' 或 'opencode'
+  --shell <shell>        启动时使用的 shell: 'claude'、'opencode' 或 'bash'
   --no-web               禁用 Web UI（使用终端附加）
   --no-push              禁用自动分支推送
   --no-pr                禁用自动 PR 创建
@@ -281,6 +313,8 @@ claude-run update        # 别名
 - `autoPush`: 提交后自动推送分支
 - `autoCreatePR`: 自动创建拉取请求
 - `autoStartClaude`: 自动启动 Claude Code (默认: true)
+- `codeRunner`: 要使用的代码运行器: `"claude"` 或 `"opencode"` (默认: `"claude"`)
+- `defaultShell`: 启动时使用的 shell: `"claude"`、`"opencode"` 或 `"bash"` (默认: 与 `codeRunner` 一致)
 - `envFile`: 从文件加载环境变量 (例如 `.env`)
 - `environment`: 额外的环境变量
 - `setupCommands`: 容器启动后要运行的命令（例如安装依赖）
@@ -297,6 +331,29 @@ claude-run update        # 别名
 - `forwardSshAgent`: 转发 SSH agent 以支持带密码的密钥（默认：true）
 - `forwardGpgAgent`: 转发 GPG agent 以支持带密码的 GPG 密钥（默认：false，需显式启用）
 - `enableGpgSigning`: 在容器中启用 GPG 提交签名（默认：false）
+
+#### OpenCode 配置
+
+要使用 OpenCode 而不是 Claude Code，创建一个配置文件：
+
+```jsonc
+{
+	"codeRunner": "opencode",
+	"defaultShell": "opencode",
+	"environment": {
+		// Anthropic 提供商
+		"ANTHROPIC_API_KEY": "your-api-key",
+
+		// 自定义 API 端点（例如代理服务）
+		"ANTHROPIC_BASE_URL": "https://your-proxy-url"
+	}
+}
+```
+
+OpenCode 支持多个提供商。详情请参阅 [OpenCode 提供商文档](https://opencode.ai/docs/providers/)：
+- OpenAI、Anthropic、Google Vertex AI、Azure OpenAI
+- OpenRouter、Groq、Together AI 等
+- 通过 Ollama 或 LM Studio 使用本地模型
 
 #### 挂载配置
 

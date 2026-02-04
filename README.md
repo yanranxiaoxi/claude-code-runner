@@ -7,11 +7,24 @@
 > - This work is alpha and might have security issues, use at your own risk.
 > - Email [admin@soraharu.com](mailto:admin@soraharu.com) for inquiries.
 
-Run Claude Code as an autonomous agent inside Docker containers with automatic GitHub integration. Bypass all permissions safely.
+Run Claude Code or OpenCode as an autonomous agent inside Docker containers with automatic GitHub integration. Bypass all permissions safely.
+
+## Supported Code Runners
+
+Claude Code Runner supports multiple AI coding assistants:
+
+| Runner | Command | Description |
+|--------|---------|-------------|
+| **Claude Code** | `claude-run` | Anthropic's official Claude Code CLI |
+| **OpenCode** | `claude-run --runner opencode` | Open-source alternative with multi-provider support |
+
+You can switch between runners using:
+- **CLI flag**: `--runner claude` or `--runner opencode`
+- **Config file**: Set `"codeRunner": "opencode"` in `claude-run.config.json`
 
 ## Why Claude Code Runner?
 
-The primary goal of Claude Code Runner is to enable **full async agentic workflows** by allowing Claude Code to execute without permission prompts. By running Claude in an isolated Docker container with the `--dangerously-skip-permissions` flag, Claude can:
+The primary goal of Claude Code Runner is to enable **full async agentic workflows** by allowing Claude Code or OpenCode to execute without permission prompts. By running the code assistant in an isolated Docker container with the `--dangerously-skip-permissions` flag, the AI can:
 
 - Execute any command instantly without asking for permission
 - Make code changes autonomously
@@ -19,14 +32,14 @@ The primary goal of Claude Code Runner is to enable **full async agentic workflo
 - Create commits and manage git operations
 - Work continuously without interrupting the user
 
-Access Claude through a **browser-based terminal** that lets you monitor and interact with the AI assistant while you work on other tasks. This creates a truly autonomous development assistant, similar to [OpenAI Codex](https://chatgpt.com/codex) or [Google Jules](https://jules.dev), but running locally on your machine with full control.
+Access the code assistant through a **browser-based terminal** that lets you monitor and interact with the AI assistant while you work on other tasks. This creates a truly autonomous development assistant, similar to [OpenAI Codex](https://chatgpt.com/codex) or [Google Jules](https://jules.dev), but running locally on your machine with full control.
 
 ## Overview
 
-Claude Code Runner allows you to run Claude Code in isolated Docker containers, providing a safe environment for AI-assisted development. It automatically:
+Claude Code Runner allows you to run Claude Code or OpenCode in isolated Docker containers, providing a safe environment for AI-assisted development. It automatically:
 
 - Creates a new git branch for each session
-- Monitors for commits made by Claude
+- Monitors for commits made by the AI assistant
 - Provides interactive review of changes
 - Handles credential forwarding securely
 - Enables push/PR creation workflows
@@ -102,6 +115,9 @@ The following commands are shortcuts for `claude-run`:
 
 - `clauderun`
 - `ccrun`
+- `ocrun` (OpenCode alias)
+- `opencoderun` (OpenCode alias)
+- `opencode-run` (OpenCode alias)
 
 #### `claude-run` (default)
 
@@ -109,6 +125,20 @@ Start a new container with web UI (recommended):
 
 ```bash
 claude-run
+```
+
+#### Using OpenCode
+
+To use OpenCode instead of Claude Code:
+
+```bash
+# Via CLI flag
+claude-run --runner opencode
+
+# Or use OpenCode aliases
+ocrun
+opencoderun
+opencode-run
 ```
 
 #### `claude-run start`
@@ -121,6 +151,8 @@ claude-run start [options]
 Options:
   -c, --config <path>    Configuration file (default: ./claude-run.config.json)
   -n, --name <name>      Container name prefix
+  --runner <runner>      Code runner to use: 'claude' or 'opencode'
+  --shell <shell>        Shell to start with: 'claude', 'opencode', or 'bash'
   --no-web               Disable web UI (use terminal attach)
   --no-push              Disable automatic branch pushing
   --no-pr                Disable automatic PR creation
@@ -261,6 +293,8 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `autoPush`: Automatically push branches after commits
 - `autoCreatePR`: Automatically create pull requests
 - `autoStartClaude`: Start Claude Code automatically (default: true)
+- `codeRunner`: Which code runner to use: `"claude"` or `"opencode"` (default: `"claude"`)
+- `defaultShell`: Shell to start with: `"claude"`, `"opencode"`, or `"bash"` (default: matches `codeRunner`)
 - `envFile`: Load environment variables from file (e.g., `.env`)
 - `environment`: Additional environment variables
 - `setupCommands`: Commands to run after container starts (e.g., install dependencies)
@@ -277,6 +311,29 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `forwardSshAgent`: Forward SSH agent for passphrase-protected keys (default: true)
 - `forwardGpgAgent`: Forward GPG agent for passphrase-protected GPG keys (default: false, requires explicit enabling)
 - `enableGpgSigning`: Enable GPG commit signing in container (default: false)
+
+#### OpenCode Configuration
+
+To use OpenCode instead of Claude Code, create a config file with:
+
+```jsonc
+{
+	"codeRunner": "opencode",
+	"defaultShell": "opencode",
+	"environment": {
+		// For Anthropic provider
+		"ANTHROPIC_API_KEY": "your-api-key",
+
+		// For custom API endpoint (e.g., proxy services)
+		"ANTHROPIC_BASE_URL": "https://your-proxy-url"
+	}
+}
+```
+
+OpenCode supports multiple providers. See [OpenCode Providers Documentation](https://opencode.ai/docs/providers/) for details on configuring:
+- OpenAI, Anthropic, Google Vertex AI, Azure OpenAI
+- OpenRouter, Groq, Together AI, and many more
+- Local models via Ollama or LM Studio
 
 #### Mount Configuration
 
