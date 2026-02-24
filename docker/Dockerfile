@@ -37,7 +37,7 @@ RUN dnf install -y 'dnf-command(config-manager)' \
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Install OpenCode globally via npm
-RUN npm install -g opencode
+RUN npm install -g opencode-ai@latest
 
 # Ensure claude is in PATH for all users
 ENV PATH="/root/.local/bin:${PATH}"
