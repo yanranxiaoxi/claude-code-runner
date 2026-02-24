@@ -4,7 +4,7 @@
 	"environment": {
 		"ANTHROPIC_AUTH_TOKEN": "<YOUR_ANTHROPIC_AUTH_TOKEN>",
 		"ANTHROPIC_BASE_URL": "https://api.ai.soraharu.com",
-		"ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-5",
-		"ANTHROPIC_SMALL_FAST_MODEL": "anthropic/claude-haiku-4-5"
+		"ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-6",
+		"ANTHROPIC_SMALL_FAST_MODEL": "anthropic/claude-haiku-4-6"
 	}
 }
