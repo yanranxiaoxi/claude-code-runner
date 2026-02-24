@@ -1,4 +1,5 @@
 import { exec } from 'node:child_process';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
@@ -23,7 +24,7 @@ export class ShadowRepository {
 
 	constructor(
 		private options: ShadowRepoOptions,
-		private basePath: string = '/tmp/claude-shadows',
+		private basePath: string = path.join(os.tmpdir(), 'claude-shadows'),
 	) {
 		this.shadowPath = path.join(this.basePath, this.options.sessionId);
 		this.rsyncExcludeFile = path.join(

@@ -10,6 +10,16 @@ import chalk from 'chalk';
 import tarStream from 'tar-stream';
 import { CODE_RUNNERS } from './types';
 
+/** Normalize path separators for shell commands (Windows backslash → forward slash) */
+function toShellPath(filePath: string): string {
+	return filePath.replace(/\\/g, '/');
+}
+
+/** Get a cross-platform temporary file path */
+function getTempFile(prefix: string, extension: string): string {
+	return path.join(os.tmpdir(), `${prefix}-${Date.now()}${extension}`);
+}
+
 export class ContainerManager {
 	private docker: Docker;
 	private config: SandboxConfig;
@@ -640,7 +650,7 @@ export class ContainerManager {
 			console.log(chalk.blue(`• Copying ${allFiles.length} files...`));
 
 			// Create tar archive using git archive for tracked files + untracked files
-			const tarFile = `/tmp/claude-runner-${Date.now()}.tar`;
+			const tarFile = getTempFile('claude-runner', '.tar');
 
 			// Check if the repository has any commits (HEAD exists)
 			let hasCommits = false;
@@ -659,17 +669,17 @@ export class ContainerManager {
 			// Create archive of tracked files
 			if (hasCommits && trackedFiles.length > 0) {
 				// Use git archive for repositories with commits
-				execSync(`git archive --format=tar -o "${tarFile}" HEAD`, {
+				execSync(`git archive --format=tar -o "${toShellPath(tarFile)}" HEAD`, {
 					cwd: workDir,
 					stdio: 'pipe',
 				});
 			}
 			else if (trackedFiles.length > 0) {
 				// Use tar for repositories without commits
-				const fileListPath = `/tmp/claude-runner-tracked-${Date.now()}.txt`;
+				const fileListPath = getTempFile('claude-runner-tracked', '.txt');
 				fs.writeFileSync(fileListPath, trackedFiles.join('\n'));
 
-				execSync(`tar -cf "${tarFile}" --files-from="${fileListPath}"`, {
+				execSync(`tar -cf "${toShellPath(tarFile)}" --files-from="${toShellPath(fileListPath)}"`, {
 					cwd: workDir,
 					stdio: 'pipe',
 				});
@@ -678,7 +688,8 @@ export class ContainerManager {
 			}
 			else {
 				// No tracked files, create an empty tar archive
-				execSync(`tar -cf "${tarFile}" -T /dev/null`, {
+				const devNull = process.platform === 'win32' ? 'NUL' : '/dev/null';
+				execSync(`tar -cf "${toShellPath(tarFile)}" -T ${devNull}`, {
 					cwd: workDir,
 					stdio: 'pipe',
 				});
@@ -687,11 +698,11 @@ export class ContainerManager {
 			// Add untracked files if any
 			if (untrackedFiles.length > 0) {
 				// Create a file list for tar
-				const fileListPath = `/tmp/claude-runner-files-${Date.now()}.txt`;
+				const fileListPath = getTempFile('claude-runner-files', '.txt');
 				fs.writeFileSync(fileListPath, untrackedFiles.join('\n'));
 
 				// Append untracked files to the tar
-				execSync(`tar -rf "${tarFile}" --files-from="${fileListPath}"`, {
+				execSync(`tar -rf "${toShellPath(tarFile)}" --files-from="${toShellPath(fileListPath)}"`, {
 					cwd: workDir,
 					stdio: 'pipe',
 				});
@@ -723,7 +734,7 @@ export class ContainerManager {
 
 			// Also copy .git directory to preserve git history
 			console.log(chalk.blue('• Copying git history...'));
-			const gitTarFile = `/tmp/claude-runner-git-${Date.now()}.tar`;
+			const gitTarFile = getTempFile('claude-runner-git', '.tar');
 			// Exclude macOS resource fork files and .DS_Store when creating git archive
 			// Also strip extended attributes to prevent macOS xattr issues in Docker
 			const tarFlags = getTarFlags();
@@ -731,7 +742,7 @@ export class ContainerManager {
 			const additionalFlags = (process.platform as string) === 'darwin' ? '--no-xattrs --no-fflags' : '';
 			const combinedFlags = `${tarFlags} ${additionalFlags}`.trim();
 			execSync(
-				`tar -cf "${gitTarFile}" --exclude="._*" --exclude=".DS_Store" ${combinedFlags} .git`,
+				`tar -cf "${toShellPath(gitTarFile)}" --exclude="._*" --exclude=".DS_Store" ${combinedFlags} .git`,
 				{
 					cwd: workDir,
 					stdio: 'pipe',
@@ -802,7 +813,7 @@ export class ContainerManager {
 						);
 
 						// Create .claude directory structure
-						const claudeDirTar = `/tmp/claude-keychain-${Date.now()}.tar`;
+						const claudeDirTar = getTempFile('claude-keychain', '.tar');
 						const pack = tarStream.pack();
 
 						// Add .credentials.json to the tar
@@ -866,7 +877,7 @@ export class ContainerManager {
 				console.log(chalk.blue('• Copying .claude.json...'));
 
 				const configContent = fs.readFileSync(claudeJsonPath, 'utf-8');
-				const tarFile = `/tmp/claude-json-${Date.now()}.tar`;
+				const tarFile = getTempFile('claude-json', '.tar');
 				const pack = tarStream.pack();
 
 				pack.entry(
@@ -920,13 +931,13 @@ export class ContainerManager {
 			) {
 				console.log(chalk.blue('• Copying .claude directory...'));
 
-				const tarFile = `/tmp/claude-dir-${Date.now()}.tar`;
+				const tarFile = getTempFile('claude-dir', '.tar');
 				const tarFlags = getTarFlags();
 				// On macOS, also exclude extended attributes that cause Docker issues
 				const additionalFlags = (process.platform as string) === 'darwin' ? '--no-xattrs --no-fflags' : '';
 				const combinedFlags = `${tarFlags} ${additionalFlags}`.trim();
 				execSync(
-					`tar -cf "${tarFile}" ${combinedFlags} -C "${os.homedir()}" .claude`,
+					`tar -cf "${toShellPath(tarFile)}" ${combinedFlags} -C "${toShellPath(os.homedir())}" .claude`,
 					{
 						stdio: 'pipe',
 					},
@@ -979,7 +990,7 @@ export class ContainerManager {
 			const configContent = fs.readFileSync(gitConfigPath, 'utf-8');
 
 			// Create a temporary tar file with the git config
-			const tarFile = `/tmp/git-config-${Date.now()}.tar`;
+			const tarFile = getTempFile('git-config', '.tar');
 			const pack = tarStream.pack();
 
 			// Add the .gitconfig file to the tar
