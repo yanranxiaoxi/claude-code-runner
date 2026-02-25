@@ -305,6 +305,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `bashTimeout`: Timeout for bash commands in milliseconds
 - `containerPrefix`: Custom prefix for container names
 - `claudeConfigPath`: Path to Claude configuration file
+- `opencodeConfigPath`: Path to OpenCode configuration file (default: `~/.config/opencode/opencode.json`)
 - `dockerSocketPath`: Custom Docker/Podman socket path (auto-detected by default)
 - `forwardSshKeys`: Forward SSH keys from `~/.ssh` to container (default: true)
 - `forwardGpgKeys`: Forward GPG keys from `~/.gnupg` to container (default: true)
@@ -334,6 +335,40 @@ OpenCode supports multiple providers. See [OpenCode Providers Documentation](htt
 - OpenAI, Anthropic, Google Vertex AI, Azure OpenAI
 - OpenRouter, Groq, Together AI, and many more
 - Local models via Ollama or LM Studio
+
+##### Using oh-my-opencode Plugin
+
+The container includes [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode) pre-installed. To enable it:
+
+**1. Create configuration on your host machine** (recommended approach):
+
+Create `~/.config/opencode/opencode.json` on your host:
+
+```jsonc
+{
+	"plugin": ["oh-my-opencode"],
+	"agents": {
+		"sisyphus": { "model": "anthropic/claude-opus-4-6" }
+	}
+}
+```
+
+The configuration will be automatically copied to the container when it starts.
+
+**2. Run the installer inside the container:**
+
+```bash
+# Inside the container
+npx oh-my-opencode install --no-tui --claude=yes --gemini=no --copilot=no
+```
+
+> **Note**: Creating the config on your host machine is preferred because:
+> - The config file typically contains sensitive API keys
+> - You can keep it out of git tracking (add `opencode.json` to `.gitignore`)
+> - The same config can be reused across multiple containers
+> - You can customize the path using `opencodeConfigPath` in your `claude-run.config.json`
+
+For detailed configuration options, see the [oh-my-opencode installation guide](https://github.com/code-yeongyu/oh-my-opencode/blob/master/docs/guide/installation.md).
 
 #### Mount Configuration
 

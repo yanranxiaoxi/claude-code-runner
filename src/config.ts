@@ -12,6 +12,7 @@ const DEFAULT_CONFIG: SandboxConfig = {
 	defaultShell: 'claude', // Default to Claude mode for backward compatibility
 	codeRunner: 'claude', // Default to Claude Code
 	claudeConfigPath: path.join(os.homedir(), '.claude.json'),
+	opencodeConfigPath: path.join(os.homedir(), '.config', 'opencode', 'opencode.json'),
 	setupCommands: [], // Example: ["npm install", "pip install -r requirements.txt"]
 	allowedTools: ['*'], // All tools allowed in sandbox
 	includeUntracked: false, // Don't include untracked files by default

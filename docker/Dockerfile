@@ -39,6 +39,9 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Install OpenCode globally via npm
 RUN npm install -g opencode-ai@latest
 
+# Install oh-my-opencode plugin for OpenCode globally via npm
+RUN npm install -g oh-my-opencode@latest
+
 # Ensure claude is in PATH for all users
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -52,9 +55,6 @@ USER claude
 
 # Install Claude Code for claude user
 RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Install OpenCode for claude user (npm global is shared)
-# OpenCode is already installed globally, but ensure user-level config works
 
 # Ensure claude is in PATH for claude user
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc

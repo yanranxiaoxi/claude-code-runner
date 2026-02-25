@@ -63,6 +63,9 @@ export class ContainerManager {
 			// Copy Claude configuration if it exists
 			await this._copyClaudeConfig(container);
 
+			// Copy OpenCode configuration if it exists
+			await this._copyOpencodeConfig(container);
+
 			// Copy git configuration if it exists
 			await this._copyGitConfig(container);
 		}
@@ -1049,6 +1052,78 @@ export class ContainerManager {
 		catch (error) {
 			console.error(
 				chalk.yellow('⚠ Failed to copy git configuration:'),
+				error,
+			);
+			// Don't throw - this is not critical for container operation
+		}
+	}
+
+	private async _copyOpencodeConfig(container: Docker.Container): Promise<void> {
+		try {
+			// Check if OpenCode config directory exists on host
+			const opencodeConfigDir = path.join(os.homedir(), '.config', 'opencode');
+			const opencodeConfigPath = this.config.opencodeConfigPath || path.join(opencodeConfigDir, 'opencode.json');
+
+			// Check if opencode.json exists
+			if (fs.existsSync(opencodeConfigPath)) {
+				console.log(chalk.blue('• Copying OpenCode configuration...'));
+
+				const configContent = fs.readFileSync(opencodeConfigPath, 'utf-8');
+				const tarFile = getTempFile('opencode-config', '.tar');
+				const pack = tarStream.pack();
+
+				// Add opencode.json to the tar in the correct location
+				pack.entry(
+					{ name: '.config/opencode/opencode.json', mode: 0o644 },
+					configContent,
+					(err: any) => {
+						if (err)
+							throw err;
+						pack.finalize();
+					},
+				);
+
+				const chunks: Buffer[] = [];
+				pack.on('data', (chunk: any) => chunks.push(chunk));
+
+				await new Promise<void>((resolve, reject) => {
+					pack.on('end', () => {
+						fs.writeFileSync(tarFile, Buffer.concat(chunks));
+						resolve();
+					});
+					pack.on('error', reject);
+				});
+
+				// Copy to claude user's home directory
+				const stream = fs.createReadStream(tarFile);
+				await container.putArchive(stream, {
+					path: '/home/claude',
+				});
+
+				fs.unlinkSync(tarFile);
+
+				// Fix permissions
+				await container
+					.exec({
+						Cmd: [
+							'/bin/bash',
+							'-c',
+							'sudo mkdir -p /home/claude/.config/opencode && sudo chown -R claude:claude /home/claude/.config && sudo chmod 755 /home/claude/.config /home/claude/.config/opencode && sudo chmod 644 /home/claude/.config/opencode/opencode.json',
+						],
+						AttachStdout: false,
+						AttachStderr: false,
+					})
+					.then(exec => exec.start({}));
+
+				console.log(chalk.green('✓ OpenCode configuration copied successfully'));
+			}
+			else {
+				console.log(chalk.gray('• No OpenCode configuration found to copy'));
+			}
+		}
+		catch (error) {
+			console.error(
+				chalk.yellow('⚠ Failed to copy OpenCode configuration:'),
 				error,
 			);
 			// Don't throw - this is not critical for container operation

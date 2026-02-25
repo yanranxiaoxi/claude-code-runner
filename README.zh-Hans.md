@@ -325,6 +325,7 @@ claude-run update        # 别名
 - `bashTimeout`: bash 命令超时时间（毫秒）
 - `containerPrefix`: 容器名称的自定义前缀
 - `claudeConfigPath`: Claude 配置文件的路径
+- `opencodeConfigPath`: OpenCode 配置文件的路径（默认：`~/.config/opencode/opencode.json`）
 - `dockerSocketPath`: 自定义 Docker/Podman 套接字路径（默认自动检测）
 - `forwardSshKeys`: 将 `~/.ssh` 中的 SSH 密钥转发到容器（默认：true）
 - `forwardGpgKeys`: 将 `~/.gnupg` 中的 GPG 密钥转发到容器（默认：true）
@@ -354,6 +355,40 @@ OpenCode 支持多个提供商。详情请参阅 [OpenCode 提供商文档](http
 - OpenAI、Anthropic、Google Vertex AI、Azure OpenAI
 - OpenRouter、Groq、Together AI 等
 - 通过 Ollama 或 LM Studio 使用本地模型
+
+##### 使用 oh-my-opencode 插件
+
+容器已预装 [oh-my-opencode](https://github.com/code-yeongyu/oh-my-opencode)。要启用它：
+
+**1. 在宿主机上创建配置**（推荐方式）：
+
+在宿主机上创建 `~/.config/opencode/opencode.json`：
+
+```jsonc
+{
+	"plugin": ["oh-my-opencode"],
+	"agents": {
+		"sisyphus": { "model": "anthropic/claude-opus-4-6" }
+	}
+}
+```
+
+在容器启动时，配置文件会自动复制到容器中。
+
+**2. 在容器内运行安装器：**
+
+```bash
+# 在容器内执行
+npx oh-my-opencode install --no-tui --claude=yes --gemini=no --copilot=no
+```
+
+> **注意**：在宿主机上创建配置是首选方式，因为：
+> - 配置文件通常包含敏感的 API 密钥
+> - 你可以将它排除在 git 跟踪之外（将 `opencode.json` 添加到 `.gitignore`）
+> - 同一配置可以在多个容器之间重用
+> - 你可以在 `claude-run.config.json` 中使用 `opencodeConfigPath` 自定义路径
+
+有关详细配置选项，请参阅 [oh-my-opencode 安装指南](https://github.com/code-yeongyu/oh-my-opencode/blob/master/docs/guide/installation.md)。
 
 #### 挂载配置
 

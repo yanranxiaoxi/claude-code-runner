@@ -54,6 +54,7 @@ export interface SandboxConfig {
 	defaultShell?: 'claude' | 'opencode' | 'bash';
 	codeRunner?: CodeRunner; // Which code runner to use (claude or opencode)
 	claudeConfigPath?: string;
+	opencodeConfigPath?: string; // Path to OpenCode config (e.g., ~/.config/opencode/opencode.json)
 	setupCommands?: string[];
 	environment?: Record<string, string>;
 	envFile?: string;
