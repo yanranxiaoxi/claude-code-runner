@@ -781,7 +781,7 @@ Claude Code Runner 会自动发现并转发：
 
 - 代码运行器使用各自的危险/自动批准模式标志（在容器中安全）：
   - Claude Code: `--dangerously-skip-permissions`
-  - OpenCode: `--dangerously-skip-permissions`
+  - OpenCode: 无需标志（交互式 TUI；仅在非交互 `-p` 模式下自动批准）
   - Codex: `--dangerously-bypass-approvals-and-sandbox`
   - Kimi Code: `--yolo`
   - Qwen Code: `--yolo`

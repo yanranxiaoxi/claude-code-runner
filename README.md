@@ -761,7 +761,7 @@ Claude Code Runner automatically discovers and forwards:
 
 - Code runners use their respective dangerous/auto-approve mode flags (safe in container):
   - Claude Code: `--dangerously-skip-permissions`
-  - OpenCode: `--dangerously-skip-permissions`
+  - OpenCode: no flag needed (interactive TUI; auto-approval only in non-interactive `-p` mode)
   - Codex: `--dangerously-bypass-approvals-and-sandbox`
   - Kimi Code: `--yolo`
   - Qwen Code: `--yolo`

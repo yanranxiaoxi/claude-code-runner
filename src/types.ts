@@ -29,7 +29,7 @@ export const CODE_RUNNERS: Record<CodeRunner, CodeRunnerConfig> = {
 		name: 'opencode',
 		displayName: 'OpenCode',
 		command: 'opencode',
-		dangerousFlag: '--dangerously-skip-permissions',
+		dangerousFlag: '', // OpenCode has no dangerous mode flag; auto-approval only in non-interactive mode (-p)
 		installMethod: 'npm',
 		installCommand: 'npm install -g opencode',
 		pathSetup: '', // npm global bin is already in PATH

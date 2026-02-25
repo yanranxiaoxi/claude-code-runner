@@ -1479,7 +1479,9 @@ EOF
 		runnerConfig: { name: string; displayName: string; command: string; dangerousFlag: string; pathSetup: string },
 	): string {
 		const pathSetup = runnerConfig.pathSetup ? `${runnerConfig.pathSetup}\n` : '';
-		const runnerCommand = `${runnerConfig.command} ${runnerConfig.dangerousFlag}`;
+		const runnerCommand = runnerConfig.dangerousFlag
+			? `${runnerConfig.command} ${runnerConfig.dangerousFlag}`
+			: runnerConfig.command;
 
 		// If shell is 'bash', show welcome message with instructions for all runners
 		if (defaultShell === 'bash') {
@@ -1488,7 +1490,7 @@ ${pathSetup}
 echo "Welcome to Code Runner Sandbox!"
 echo "Available commands:"
 echo "  - Type 'claude --dangerously-skip-permissions' to start Claude Code"
-echo "  - Type 'opencode --dangerously-skip-permissions' to start OpenCode"
+echo "  - Type 'opencode' to start OpenCode"
 echo "  - Type 'codex --dangerously-bypass-approvals-and-sandbox' to start Codex"
 echo "  - Type 'kimi --yolo' to start Kimi Code"
 echo "  - Type 'qwen --yolo' to start Qwen Code"

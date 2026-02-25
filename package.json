@@ -1,6 +1,6 @@
 {
 	"name": "claude-code-runner",
-	"version": "0.3.1",
+	"version": "0.3.2",
 	"description": "Run Claude Code as an autonomous agent in Docker & Podman containers",
 	"author": "XiaoXi <admin@soraharu.com>",
 	"license": "MIT",
