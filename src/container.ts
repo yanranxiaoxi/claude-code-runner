@@ -66,6 +66,15 @@ export class ContainerManager {
 			// Copy OpenCode configuration if it exists
 			await this._copyOpencodeConfig(container);
 
+			// Copy Codex configuration if it exists
+			await this._copyCodexConfig(container);
+
+			// Copy Kimi Code configuration if it exists
+			await this._copyKimiConfig(container);
+
+			// Copy Qwen Code configuration if it exists
+			await this._copyQwenConfig(container);
+
 			// Copy git configuration if it exists
 			await this._copyGitConfig(container);
 		}
@@ -1130,6 +1139,153 @@ export class ContainerManager {
 		}
 	}
 
+	private async _copyCodexConfig(container: Docker.Container): Promise<void> {
+		try {
+			// Check if Codex config directory exists on host
+			const codexConfigDir = this.config.codexConfigPath || path.join(os.homedir(), '.codex');
+
+			if (fs.existsSync(codexConfigDir) && fs.statSync(codexConfigDir).isDirectory()) {
+				console.log(chalk.blue('• Copying Codex configuration...'));
+
+				const tarFile = getTempFile('codex-config', '.tar');
+				execSync(
+					`tar -cf "${toShellPath(tarFile)}" -C "${toShellPath(path.dirname(codexConfigDir))}" "${path.basename(codexConfigDir)}"`,
+					{ stdio: 'pipe' },
+				);
+
+				const stream = fs.createReadStream(tarFile);
+				await container.putArchive(stream, {
+					path: '/home/claude',
+				});
+
+				fs.unlinkSync(tarFile);
+
+				// Fix permissions
+				await container
+					.exec({
+						Cmd: [
+							'/bin/bash',
+							'-c',
+							'sudo chown -R claude:claude /home/claude/.codex && chmod -R 755 /home/claude/.codex',
+						],
+						AttachStdout: false,
+						AttachStderr: false,
+					})
+					.then(exec => exec.start({}));
+
+				console.log(chalk.green('✓ Codex configuration copied successfully'));
+			}
+			else {
+				console.log(chalk.gray('• No Codex configuration found to copy'));
+			}
+		}
+		catch (error) {
+			console.error(
+				chalk.yellow('⚠ Failed to copy Codex configuration:'),
+				error,
+			);
+			// Don't throw - this is not critical for container operation
+		}
+	}
+
+	private async _copyKimiConfig(container: Docker.Container): Promise<void> {
+		try {
+			// Check if Kimi Code config directory exists on host
+			const kimiConfigDir = this.config.kimiConfigPath || path.join(os.homedir(), '.kimi');
+
+			if (fs.existsSync(kimiConfigDir) && fs.statSync(kimiConfigDir).isDirectory()) {
+				console.log(chalk.blue('• Copying Kimi Code configuration...'));
+
+				const tarFile = getTempFile('kimi-config', '.tar');
+				execSync(
+					`tar -cf "${toShellPath(tarFile)}" -C "${toShellPath(path.dirname(kimiConfigDir))}" "${path.basename(kimiConfigDir)}"`,
+					{ stdio: 'pipe' },
+				);
+
+				const stream = fs.createReadStream(tarFile);
+				await container.putArchive(stream, {
+					path: '/home/claude',
+				});
+
+				fs.unlinkSync(tarFile);
+
+				// Fix permissions
+				await container
+					.exec({
+						Cmd: [
+							'/bin/bash',
+							'-c',
+							'sudo chown -R claude:claude /home/claude/.kimi && chmod -R 755 /home/claude/.kimi',
+						],
+						AttachStdout: false,
+						AttachStderr: false,
+					})
+					.then(exec => exec.start({}));
+
+				console.log(chalk.green('✓ Kimi Code configuration copied successfully'));
+			}
+			else {
+				console.log(chalk.gray('• No Kimi Code configuration found to copy'));
+			}
+		}
+		catch (error) {
+			console.error(
+				chalk.yellow('⚠ Failed to copy Kimi Code configuration:'),
+				error,
+			);
+			// Don't throw - this is not critical for container operation
+		}
+	}
+
+	private async _copyQwenConfig(container: Docker.Container): Promise<void> {
+		try {
+			// Check if Qwen Code config directory exists on host
+			const qwenConfigDir = this.config.qwenConfigPath || path.join(os.homedir(), '.qwen');
+
+			if (fs.existsSync(qwenConfigDir) && fs.statSync(qwenConfigDir).isDirectory()) {
+				console.log(chalk.blue('• Copying Qwen Code configuration...'));
+
+				const tarFile = getTempFile('qwen-config', '.tar');
+				execSync(
+					`tar -cf "${toShellPath(tarFile)}" -C "${toShellPath(path.dirname(qwenConfigDir))}" "${path.basename(qwenConfigDir)}"`,
+					{ stdio: 'pipe' },
+				);
+
+				const stream = fs.createReadStream(tarFile);
+				await container.putArchive(stream, {
+					path: '/home/claude',
+				});
+
+				fs.unlinkSync(tarFile);
+
+				// Fix permissions
+				await container
+					.exec({
+						Cmd: [
+							'/bin/bash',
+							'-c',
+							'sudo chown -R claude:claude /home/claude/.qwen && chmod -R 755 /home/claude/.qwen',
+						],
+						AttachStdout: false,
+						AttachStderr: false,
+					})
+					.then(exec => exec.start({}));
+
+				console.log(chalk.green('✓ Qwen Code configuration copied successfully'));
+			}
+			else {
+				console.log(chalk.gray('• No Qwen Code configuration found to copy'));
+			}
+		}
+		catch (error) {
+			console.error(
+				chalk.yellow('⚠ Failed to copy Qwen Code configuration:'),
+				error,
+			);
+			// Don't throw - this is not critical for container operation
+		}
+	}
+
 	private async setupGitAndStartupScript(
 		container: any,
 		branchName: string,
@@ -1325,7 +1481,7 @@ EOF
 		const pathSetup = runnerConfig.pathSetup ? `${runnerConfig.pathSetup}\n` : '';
 		const runnerCommand = `${runnerConfig.command} ${runnerConfig.dangerousFlag}`;
 
-		// If shell is 'bash', show welcome message with instructions for both runners
+		// If shell is 'bash', show welcome message with instructions for all runners
 		if (defaultShell === 'bash') {
 			return `#!/bin/bash
 ${pathSetup}
@@ -1333,6 +1489,9 @@ echo "Welcome to Code Runner Sandbox!"
 echo "Available commands:"
 echo "  - Type 'claude --dangerously-skip-permissions' to start Claude Code"
 echo "  - Type 'opencode --dangerously-skip-permissions' to start OpenCode"
+echo "  - Type 'codex --dangerously-bypass-approvals-and-sandbox' to start Codex"
+echo "  - Type 'kimi --yolo' to start Kimi Code"
+echo "  - Type 'qwen --yolo' to start Qwen Code"
 echo "  - Type 'exit' to end the session"
 echo ""
 exec /bin/bash`;

@@ -162,7 +162,7 @@ async function selectContainer(containers: any[]): Promise<string | null> {
 
 program
 	.name('claude-run')
-	.description('Run Claude Code or OpenCode in isolated Docker containers')
+	.description('Run Claude Code, OpenCode, Codex, Kimi Code, or Qwen Code in isolated Docker containers')
 	.version(currentVersion, '-v, --version', 'Display version number');
 
 // Check for updates before running any command
@@ -177,19 +177,34 @@ function getRunnerFromCommandName(): CodeRunner | undefined {
 	if (commandName === 'ocrun' || commandName === 'opencoderun' || commandName === 'opencode-run') {
 		return 'opencode';
 	}
+	// Codex aliases
+	if (commandName === 'cxrun' || commandName === 'codexrun' || commandName === 'codex-run') {
+		return 'codex';
+	}
+	// Kimi Code aliases
+	if (commandName === 'kmrun' || commandName === 'kimirun' || commandName === 'kimi-run') {
+		return 'kimi';
+	}
+	// Qwen Code aliases
+	if (commandName === 'qwrun' || commandName === 'qwenrun' || commandName === 'qwen-run') {
+		return 'qwen';
+	}
 	// Claude aliases (claude-run, ccrun, clauderun) - return undefined to use config default
 	return undefined;
 }
+
+// All valid code runner names
+const VALID_RUNNERS = ['claude', 'opencode', 'codex', 'kimi', 'qwen'] as const;
 
 // Helper to validate and get code runner
 function validateCodeRunner(runner: string | undefined): CodeRunner | undefined {
 	if (!runner)
 		return undefined;
 	const lowerRunner = runner.toLowerCase();
-	if (lowerRunner === 'claude' || lowerRunner === 'opencode') {
+	if (VALID_RUNNERS.includes(lowerRunner as any)) {
 		return lowerRunner as CodeRunner;
 	}
-	console.error(chalk.red(`Invalid code runner: ${runner}. Valid options are: claude, opencode`));
+	console.error(chalk.red(`Invalid code runner: ${runner}. Valid options are: ${VALID_RUNNERS.join(', ')}`));
 	process.exit(1);
 }
 
@@ -197,12 +212,12 @@ function validateCodeRunner(runner: string | undefined): CodeRunner | undefined 
 program
 	.option(
 		'--shell <shell>',
-		'Start with \'claude\', \'opencode\', or \'bash\' shell',
-		/^(claude|opencode|bash)$/i,
+		'Start with \'claude\', \'opencode\', \'codex\', \'kimi\', \'qwen\', or \'bash\' shell',
+		/^(claude|opencode|codex|kimi|qwen|bash)$/i,
 	)
 	.option(
 		'--runner <runner>',
-		'Code runner to use: \'claude\' or \'opencode\' (overrides config)',
+		'Code runner to use: \'claude\', \'opencode\', \'codex\', \'kimi\', or \'qwen\' (overrides config)',
 	)
 	.option(
 		'--skip-reconnect-check',
@@ -260,12 +275,12 @@ program
 	.option('--pr <number>', 'Checkout a specific PR by number')
 	.option(
 		'--shell <shell>',
-		'Start with \'claude\', \'opencode\', or \'bash\' shell',
-		/^(claude|opencode|bash)$/i,
+		'Start with \'claude\', \'opencode\', \'codex\', \'kimi\', \'qwen\', or \'bash\' shell',
+		/^(claude|opencode|codex|kimi|qwen|bash)$/i,
 	)
 	.option(
 		'--runner <runner>',
-		'Code runner to use: \'claude\' or \'opencode\' (overrides config)',
+		'Code runner to use: \'claude\', \'opencode\', \'codex\', \'kimi\', or \'qwen\' (overrides config)',
 	)
 	.option(
 		'--skip-reconnect-check',

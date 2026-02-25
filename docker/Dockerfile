@@ -42,6 +42,16 @@ RUN npm install -g opencode-ai@latest
 # Install oh-my-opencode plugin for OpenCode globally via npm
 RUN npm install -g oh-my-opencode@latest
 
+# Install Codex (OpenAI) globally via npm
+RUN npm install -g @openai/codex@latest
+
+# Install Kimi Code CLI via uv (Python-based)
+RUN pip3 install uv && \
+    uv tool install --python 3.13 kimi-cli
+
+# Install Qwen Code globally via npm
+RUN npm install -g @qwen-code/qwen-code@latest
+
 # Ensure claude is in PATH for all users
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -56,7 +66,10 @@ USER claude
 # Install Claude Code for claude user
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Ensure claude is in PATH for claude user
+# Install Kimi Code CLI for claude user via uv
+RUN uv tool install --python 3.13 kimi-cli
+
+# Ensure claude and kimi are in PATH for claude user
 RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc
 
 # Switch back to root for remaining setup

@@ -13,6 +13,9 @@ const DEFAULT_CONFIG: SandboxConfig = {
 	codeRunner: 'claude', // Default to Claude Code
 	claudeConfigPath: path.join(os.homedir(), '.claude.json'),
 	opencodeConfigPath: path.join(os.homedir(), '.config', 'opencode', 'opencode.json'),
+	codexConfigPath: path.join(os.homedir(), '.codex'),
+	kimiConfigPath: path.join(os.homedir(), '.kimi'),
+	qwenConfigPath: path.join(os.homedir(), '.qwen'),
 	setupCommands: [], // Example: ["npm install", "pip install -r requirements.txt"]
 	allowedTools: ['*'], // All tools allowed in sandbox
 	includeUntracked: false, // Don't include untracked files by default
@@ -26,9 +29,18 @@ function resolveCodeRunner(config: SandboxConfig): CodeRunner {
 	if (config.codeRunner) {
 		return config.codeRunner;
 	}
-	// For backward compatibility: if defaultShell is 'claude' or 'opencode', derive codeRunner
+	// For backward compatibility: if defaultShell is set, derive codeRunner
 	if (config.defaultShell === 'opencode') {
 		return 'opencode';
+	}
+	if (config.defaultShell === 'codex') {
+		return 'codex';
+	}
+	if (config.defaultShell === 'kimi') {
+		return 'kimi';
+	}
+	if (config.defaultShell === 'qwen') {
+		return 'qwen';
 	}
 	return 'claude';
 }

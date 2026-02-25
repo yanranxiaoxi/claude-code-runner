@@ -5,6 +5,9 @@
 		"ANTHROPIC_AUTH_TOKEN": "<YOUR_ANTHROPIC_AUTH_TOKEN>",
 		"ANTHROPIC_BASE_URL": "https://api.ai.soraharu.com",
 		"ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-6",
-		"ANTHROPIC_SMALL_FAST_MODEL": "anthropic/claude-haiku-4-6"
+		"ANTHROPIC_SMALL_FAST_MODEL": "anthropic/claude-haiku-4-6",
+		"OPENAI_API_KEY": "<YOUR_OPENAI_API_KEY>",
+		"KIMI_API_KEY": "<YOUR_KIMI_API_KEY>",
+		"DASHSCOPE_API_KEY": "<YOUR_DASHSCOPE_API_KEY>"
 	}
 }

@@ -18,7 +18,10 @@
 		"docker",
 		"runner",
 		"automation",
-		"opencode"
+		"opencode",
+		"codex",
+		"kimi",
+		"qwen"
 	],
 	"main": "dist/index.js",
 	"bin": {
@@ -27,7 +30,16 @@
 		"ccrun": "./dist/cli.js",
 		"ocrun": "./dist/cli.js",
 		"opencoderun": "./dist/cli.js",
-		"opencode-run": "./dist/cli.js"
+		"opencode-run": "./dist/cli.js",
+		"cxrun": "./dist/cli.js",
+		"codexrun": "./dist/cli.js",
+		"codex-run": "./dist/cli.js",
+		"kmrun": "./dist/cli.js",
+		"kimirun": "./dist/cli.js",
+		"kimi-run": "./dist/cli.js",
+		"qwrun": "./dist/cli.js",
+		"qwenrun": "./dist/cli.js",
+		"qwen-run": "./dist/cli.js"
 	},
 	"publishConfig": {
 		"access": "public"

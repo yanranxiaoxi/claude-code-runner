@@ -7,7 +7,7 @@
 > - 这项工作处于 alpha 阶段，可能存在安全问题，使用风险自负。
 > - 如有疑问，请发送邮件至 [admin@soraharu.com](mailto:admin@soraharu.com)。
 
-在 Docker 容器内将 Claude Code 或 OpenCode 作为自主代理运行，并自动集成 GitHub。安全地绕过所有权限提示。
+在 Docker 容器内将 Claude Code、OpenCode、Codex、Kimi Code 或 Qwen Code 作为自主代理运行，并自动集成 GitHub。安全地绕过所有权限提示。
 
 ## 支持的代码运行器
 
@@ -17,14 +17,17 @@ Claude Code Runner 支持多个 AI 编程助手：
 |--------|------|------|
 | **Claude Code** | `claude-run` | Anthropic 官方的 Claude Code CLI |
 | **OpenCode** | `claude-run --runner opencode` | 支持多提供商的开源替代方案 |
+| **Codex** | `claude-run --runner codex` | OpenAI 的 Codex CLI |
+| **Kimi Code** | `claude-run --runner kimi` | 月之暗面的 Kimi Code CLI |
+| **Qwen Code** | `claude-run --runner qwen` | 阿里巴巴的 Qwen Code CLI |
 
 你可以通过以下方式切换运行器：
-- **CLI 参数**: `--runner claude` 或 `--runner opencode`
-- **配置文件**: 在 `claude-run.config.json` 中设置 `"codeRunner": "opencode"`
+- **CLI 参数**: `--runner claude`、`--runner opencode`、`--runner codex`、`--runner kimi` 或 `--runner qwen`
+- **配置文件**: 在 `claude-run.config.json` 中设置 `"codeRunner": "codex"`（或 `"kimi"`、`"qwen"` 等）
 
 ## 为什么选择 Claude Code Runner？
 
-Claude Code Runner 的主要目标是通过允许 Claude Code 或 OpenCode 在没有权限提示的情况下执行，从而实现 **完全异步的智能体工作流**。通过在隔离的 Docker 容器中使用 `--dangerously-skip-permissions` 标志运行 AI 助手，AI 可以：
+Claude Code Runner 的主要目标是通过允许 Claude Code、OpenCode、Codex、Kimi Code 或 Qwen Code 在没有权限提示的情况下执行，从而实现 **完全异步的智能体工作流**。通过在隔离的 Docker 容器中使用危险/自动批准模式标志运行 AI 助手，AI 可以：
 
 - 无需请求权限即可立即执行任何命令
 - 自主进行代码更改
@@ -36,7 +39,7 @@ Claude Code Runner 的主要目标是通过允许 Claude Code 或 OpenCode 在�
 
 ## 概述
 
-Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code 或 OpenCode，为 AI 辅助开发提供安全的环境。它会自动：
+Claude Code Runner 允许你在隔离的 Docker 容器中运行 Claude Code、OpenCode、Codex、Kimi Code 或 Qwen Code，为 AI 辅助开发提供安全的环境。它会自动：
 
 - 为每个会话创建新的 Git 分支
 - 监控 AI 助手所做的提交
@@ -136,6 +139,15 @@ claude-run
 - `ocrun`（OpenCode 别名）
 - `opencoderun`（OpenCode 别名）
 - `opencode-run`（OpenCode 别名）
+- `cxrun`（Codex 别名）
+- `codexrun`（Codex 别名）
+- `codex-run`（Codex 别名）
+- `kmrun`（Kimi Code 别名）
+- `kimirun`（Kimi Code 别名）
+- `kimi-run`（Kimi Code 别名）
+- `qwrun`（Qwen Code 别名）
+- `qwenrun`（Qwen Code 别名）
+- `qwen-run`（Qwen Code 别名）
 
 #### `claude-run`（默认）
 
@@ -159,6 +171,48 @@ opencoderun
 opencode-run
 ```
 
+#### 使用 Codex
+
+要使用 OpenAI Codex：
+
+```bash
+# 通过 CLI 参数
+claude-run --runner codex
+
+# 或使用 Codex 别名
+cxrun
+codexrun
+codex-run
+```
+
+#### 使用 Kimi Code
+
+要使用月之暗面的 Kimi Code：
+
+```bash
+# 通过 CLI 参数
+claude-run --runner kimi
+
+# 或使用 Kimi Code 别名
+kmrun
+kimirun
+kimi-run
+```
+
+#### 使用 Qwen Code
+
+要使用阿里巴巴的 Qwen Code：
+
+```bash
+# 通过 CLI 参数
+claude-run --runner qwen
+
+# 或使用 Qwen Code 别名
+qwrun
+qwenrun
+qwen-run
+```
+
 #### `claude-run start`
 
 显式启动带选项的新容器：
@@ -169,8 +223,8 @@ claude-run start [选项]
 选项:
   -c, --config <path>    配置文件（默认: ./claude-run.config.json）
   -n, --name <name>      容器名称前缀
-  --runner <runner>      要使用的代码运行器: 'claude' 或 'opencode'
-  --shell <shell>        启动时使用的 shell: 'claude'、'opencode' 或 'bash'
+  --runner <runner>      要使用的代码运行器: 'claude'、'opencode'、'codex'、'kimi' 或 'qwen'
+  --shell <shell>        启动时使用的 shell: 'claude'、'opencode'、'codex'、'kimi'、'qwen' 或 'bash'
   --no-web               禁用 Web UI（使用终端附加）
   --no-push              禁用自动分支推送
   --no-pr                禁用自动 PR 创建
@@ -313,8 +367,8 @@ claude-run update        # 别名
 - `autoPush`: 提交后自动推送分支
 - `autoCreatePR`: 自动创建拉取请求
 - `autoStartClaude`: 自动启动 Claude Code (默认: true)
-- `codeRunner`: 要使用的代码运行器: `"claude"` 或 `"opencode"` (默认: `"claude"`)
-- `defaultShell`: 启动时使用的 shell: `"claude"`、`"opencode"` 或 `"bash"` (默认: 与 `codeRunner` 一致)
+- `codeRunner`: 要使用的代码运行器: `"claude"`、`"opencode"`、`"codex"`、`"kimi"` 或 `"qwen"` (默认: `"claude"`)
+- `defaultShell`: 启动时使用的 shell: `"claude"`、`"opencode"`、`"codex"`、`"kimi"`、`"qwen"` 或 `"bash"` (默认: 与 `codeRunner` 一致)
 - `envFile`: 从文件加载环境变量 (例如 `.env`)
 - `environment`: 额外的环境变量
 - `setupCommands`: 容器启动后要运行的命令（例如安装依赖）
@@ -326,6 +380,9 @@ claude-run update        # 别名
 - `containerPrefix`: 容器名称的自定义前缀
 - `claudeConfigPath`: Claude 配置文件的路径
 - `opencodeConfigPath`: OpenCode 配置文件的路径（默认：`~/.config/opencode/opencode.json`）
+- `codexConfigPath`: Codex 配置目录的路径（默认：`~/.codex`）
+- `kimiConfigPath`: Kimi Code 配置目录的路径（默认：`~/.kimi`）
+- `qwenConfigPath`: Qwen Code 配置目录的路径（默认：`~/.qwen`）
 - `dockerSocketPath`: 自定义 Docker/Podman 套接字路径（默认自动检测）
 - `forwardSshKeys`: 将 `~/.ssh` 中的 SSH 密钥转发到容器（默认：true）
 - `forwardGpgKeys`: 将 `~/.gnupg` 中的 GPG 密钥转发到容器（默认：true）
@@ -389,6 +446,69 @@ npx oh-my-opencode install --no-tui --claude=yes --gemini=no --copilot=no
 > - 你可以在 `claude-run.config.json` 中使用 `opencodeConfigPath` 自定义路径
 
 有关详细配置选项，请参阅 [oh-my-opencode 安装指南](https://github.com/code-yeongyu/oh-my-opencode/blob/master/docs/guide/installation.md)。
+
+#### Codex 配置
+
+要使用 OpenAI Codex，创建一个配置文件：
+
+```jsonc
+{
+	"codeRunner": "codex",
+	"defaultShell": "codex",
+	"environment": {
+		"OPENAI_API_KEY": "your-openai-api-key"
+	}
+}
+```
+
+Codex 在容器中使用 `--dangerously-bypass-approvals-and-sandbox` 模式运行。你也可以在容器内通过 `codex login` 进行认证。
+
+配置存储在 `~/.codex/`（包括 `config.toml` 和 `auth.json`）。你可以在 `claude-run.config.json` 中使用 `codexConfigPath` 自定义路径。
+
+详情请参阅 [Codex CLI 文档](https://github.com/openai/codex)。
+
+#### Kimi Code 配置
+
+要使用月之暗面的 Kimi Code，创建一个配置文件：
+
+```jsonc
+{
+	"codeRunner": "kimi",
+	"defaultShell": "kimi",
+	"environment": {
+		"KIMI_API_KEY": "your-kimi-api-key",
+		"KIMI_BASE_URL": "https://api.kimi.com/coding/v1"
+	}
+}
+```
+
+Kimi Code 在容器中使用 `--yolo` 模式（自动批准所有操作）运行。你也可以在 `~/.kimi/config.toml` 中配置默认模型和其他选项。
+
+配置存储在 `~/.kimi/`。你可以在 `claude-run.config.json` 中使用 `kimiConfigPath` 自定义路径。
+
+详情请参阅 [Kimi Code CLI 文档](https://github.com/MoonshotAI/kimi-cli)。
+
+#### Qwen Code 配置
+
+要使用阿里巴巴的 Qwen Code，创建一个配置文件：
+
+```jsonc
+{
+	"codeRunner": "qwen",
+	"defaultShell": "qwen",
+	"environment": {
+		"DASHSCOPE_API_KEY": "your-dashscope-api-key"
+	}
+}
+```
+
+Qwen Code 在容器中使用 `--yolo` 模式（自动批准所有操作）运行。它支持通过配置 `~/.qwen/settings.json` 使用多个模型提供商。
+
+配置存储在 `~/.qwen/`。你可以在 `claude-run.config.json` 中使用 `qwenConfigPath` 自定义路径。
+
+Qwen Code 还支持通过 `settings.json` 中的 `modelProviders` 配置使用 `OPENAI_API_KEY`、`ANTHROPIC_API_KEY` 和 `GEMINI_API_KEY`。
+
+详情请参阅 [Qwen Code 文档](https://github.com/nicepkg/qwen-code)。
 
 #### 挂载配置
 
@@ -659,7 +779,12 @@ Claude Code Runner 会自动发现并转发：
 
 ### 沙箱执行
 
-- Claude 使用 `--dangerously-skip-permissions` 标志运行（在容器中安全）
+- 代码运行器使用各自的危险/自动批准模式标志（在容器中安全）：
+  - Claude Code: `--dangerously-skip-permissions`
+  - OpenCode: `--dangerously-skip-permissions`
+  - Codex: `--dangerously-bypass-approvals-and-sandbox`
+  - Kimi Code: `--yolo`
+  - Qwen Code: `--yolo`
 - 为每个会话创建隔离的分支
 - 在容器内完全访问运行任何命令
 - 文件被复制到容器中（而不是挂载），实现真正的隔离
@@ -706,6 +831,10 @@ claude-run attach
 - Node.js、npm
 - Python 3
 - Claude Code
+- OpenCode（含 oh-my-opencode 插件）
+- Codex (OpenAI)
+- Kimi Code CLI
+- Qwen Code
 - 构建必需工具
 
 ### 自定义 Dockerfile

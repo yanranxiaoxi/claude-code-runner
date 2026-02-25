@@ -1,5 +1,5 @@
 // Supported code runners
-export type CodeRunner = 'claude' | 'opencode';
+export type CodeRunner = 'claude' | 'opencode' | 'codex' | 'kimi' | 'qwen';
 
 // Code runner configuration
 export interface CodeRunnerConfig {
@@ -35,6 +35,36 @@ export const CODE_RUNNERS: Record<CodeRunner, CodeRunnerConfig> = {
 		pathSetup: '', // npm global bin is already in PATH
 		configPath: 'opencode.json',
 	},
+	codex: {
+		name: 'codex',
+		displayName: 'Codex',
+		command: 'codex',
+		dangerousFlag: '--dangerously-bypass-approvals-and-sandbox',
+		installMethod: 'npm',
+		installCommand: 'npm install -g @openai/codex',
+		pathSetup: '', // npm global bin is already in PATH
+		configPath: '.codex',
+	},
+	kimi: {
+		name: 'kimi',
+		displayName: 'Kimi Code',
+		command: 'kimi',
+		dangerousFlag: '--yolo',
+		installMethod: 'script',
+		installCommand: 'curl -LsSf https://code.kimi.com/install.sh | bash',
+		pathSetup: 'export PATH="$HOME/.local/bin:$PATH"',
+		configPath: '.kimi',
+	},
+	qwen: {
+		name: 'qwen',
+		displayName: 'Qwen Code',
+		command: 'qwen',
+		dangerousFlag: '--yolo',
+		installMethod: 'npm',
+		installCommand: 'npm install -g @qwen-code/qwen-code@latest',
+		pathSetup: '', // npm global bin is already in PATH
+		configPath: '.qwen',
+	},
 };
 
 export interface VolumeMount {
@@ -51,10 +81,13 @@ export interface SandboxConfig {
 	autoPush?: boolean;
 	autoCreatePR?: boolean;
 	autoStartClaude?: boolean;
-	defaultShell?: 'claude' | 'opencode' | 'bash';
-	codeRunner?: CodeRunner; // Which code runner to use (claude or opencode)
+	defaultShell?: 'claude' | 'opencode' | 'codex' | 'kimi' | 'qwen' | 'bash';
+	codeRunner?: CodeRunner; // Which code runner to use
 	claudeConfigPath?: string;
 	opencodeConfigPath?: string; // Path to OpenCode config (e.g., ~/.config/opencode/opencode.json)
+	codexConfigPath?: string; // Path to Codex config directory (e.g., ~/.codex)
+	kimiConfigPath?: string; // Path to Kimi Code config directory (e.g., ~/.kimi)
+	qwenConfigPath?: string; // Path to Qwen Code config directory (e.g., ~/.qwen)
 	setupCommands?: string[];
 	environment?: Record<string, string>;
 	envFile?: string;

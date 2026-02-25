@@ -7,7 +7,7 @@
 > - This work is alpha and might have security issues, use at your own risk.
 > - Email [admin@soraharu.com](mailto:admin@soraharu.com) for inquiries.
 
-Run Claude Code or OpenCode as an autonomous agent inside Docker containers with automatic GitHub integration. Bypass all permissions safely.
+Run Claude Code, OpenCode, Codex, Kimi Code, or Qwen Code as an autonomous agent inside Docker containers with automatic GitHub integration. Bypass all permissions safely.
 
 ## Supported Code Runners
 
@@ -17,14 +17,17 @@ Claude Code Runner supports multiple AI coding assistants:
 |--------|---------|-------------|
 | **Claude Code** | `claude-run` | Anthropic's official Claude Code CLI |
 | **OpenCode** | `claude-run --runner opencode` | Open-source alternative with multi-provider support |
+| **Codex** | `claude-run --runner codex` | OpenAI's Codex CLI |
+| **Kimi Code** | `claude-run --runner kimi` | Moonshot AI's Kimi Code CLI |
+| **Qwen Code** | `claude-run --runner qwen` | Alibaba's Qwen Code CLI |
 
 You can switch between runners using:
-- **CLI flag**: `--runner claude` or `--runner opencode`
-- **Config file**: Set `"codeRunner": "opencode"` in `claude-run.config.json`
+- **CLI flag**: `--runner claude`, `--runner opencode`, `--runner codex`, `--runner kimi`, or `--runner qwen`
+- **Config file**: Set `"codeRunner": "codex"` (or `"kimi"`, `"qwen"`, etc.) in `claude-run.config.json`
 
 ## Why Claude Code Runner?
 
-The primary goal of Claude Code Runner is to enable **full async agentic workflows** by allowing Claude Code or OpenCode to execute without permission prompts. By running the code assistant in an isolated Docker container with the `--dangerously-skip-permissions` flag, the AI can:
+The primary goal of Claude Code Runner is to enable **full async agentic workflows** by allowing Claude Code, OpenCode, Codex, Kimi Code, or Qwen Code to execute without permission prompts. By running the code assistant in an isolated Docker container with dangerous/auto-approve mode flags, the AI can:
 
 - Execute any command instantly without asking for permission
 - Make code changes autonomously
@@ -36,7 +39,7 @@ Access the code assistant through a **browser-based terminal** that lets you mon
 
 ## Overview
 
-Claude Code Runner allows you to run Claude Code or OpenCode in isolated Docker containers, providing a safe environment for AI-assisted development. It automatically:
+Claude Code Runner allows you to run Claude Code, OpenCode, Codex, Kimi Code, or Qwen Code in isolated Docker containers, providing a safe environment for AI-assisted development. It automatically:
 
 - Creates a new git branch for each session
 - Monitors for commits made by the AI assistant
@@ -118,6 +121,15 @@ The following commands are shortcuts for `claude-run`:
 - `ocrun` (OpenCode alias)
 - `opencoderun` (OpenCode alias)
 - `opencode-run` (OpenCode alias)
+- `cxrun` (Codex alias)
+- `codexrun` (Codex alias)
+- `codex-run` (Codex alias)
+- `kmrun` (Kimi Code alias)
+- `kimirun` (Kimi Code alias)
+- `kimi-run` (Kimi Code alias)
+- `qwrun` (Qwen Code alias)
+- `qwenrun` (Qwen Code alias)
+- `qwen-run` (Qwen Code alias)
 
 #### `claude-run` (default)
 
@@ -141,6 +153,48 @@ opencoderun
 opencode-run
 ```
 
+#### Using Codex
+
+To use OpenAI Codex:
+
+```bash
+# Via CLI flag
+claude-run --runner codex
+
+# Or use Codex aliases
+cxrun
+codexrun
+codex-run
+```
+
+#### Using Kimi Code
+
+To use Moonshot AI's Kimi Code:
+
+```bash
+# Via CLI flag
+claude-run --runner kimi
+
+# Or use Kimi Code aliases
+kmrun
+kimirun
+kimi-run
+```
+
+#### Using Qwen Code
+
+To use Alibaba's Qwen Code:
+
+```bash
+# Via CLI flag
+claude-run --runner qwen
+
+# Or use Qwen Code aliases
+qwrun
+qwenrun
+qwen-run
+```
+
 #### `claude-run start`
 
 Explicitly start a new container with options:
@@ -151,8 +205,8 @@ claude-run start [options]
 Options:
   -c, --config <path>    Configuration file (default: ./claude-run.config.json)
   -n, --name <name>      Container name prefix
-  --runner <runner>      Code runner to use: 'claude' or 'opencode'
-  --shell <shell>        Shell to start with: 'claude', 'opencode', or 'bash'
+  --runner <runner>      Code runner to use: 'claude', 'opencode', 'codex', 'kimi', or 'qwen'
+  --shell <shell>        Shell to start with: 'claude', 'opencode', 'codex', 'kimi', 'qwen', or 'bash'
   --no-web               Disable web UI (use terminal attach)
   --no-push              Disable automatic branch pushing
   --no-pr                Disable automatic PR creation
@@ -293,8 +347,8 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `autoPush`: Automatically push branches after commits
 - `autoCreatePR`: Automatically create pull requests
 - `autoStartClaude`: Start Claude Code automatically (default: true)
-- `codeRunner`: Which code runner to use: `"claude"` or `"opencode"` (default: `"claude"`)
-- `defaultShell`: Shell to start with: `"claude"`, `"opencode"`, or `"bash"` (default: matches `codeRunner`)
+- `codeRunner`: Which code runner to use: `"claude"`, `"opencode"`, `"codex"`, `"kimi"`, or `"qwen"` (default: `"claude"`)
+- `defaultShell`: Shell to start with: `"claude"`, `"opencode"`, `"codex"`, `"kimi"`, `"qwen"`, or `"bash"` (default: matches `codeRunner`)
 - `envFile`: Load environment variables from file (e.g., `.env`)
 - `environment`: Additional environment variables
 - `setupCommands`: Commands to run after container starts (e.g., install dependencies)
@@ -306,6 +360,9 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `containerPrefix`: Custom prefix for container names
 - `claudeConfigPath`: Path to Claude configuration file
 - `opencodeConfigPath`: Path to OpenCode configuration file (default: `~/.config/opencode/opencode.json`)
+- `codexConfigPath`: Path to Codex configuration directory (default: `~/.codex`)
+- `kimiConfigPath`: Path to Kimi Code configuration directory (default: `~/.kimi`)
+- `qwenConfigPath`: Path to Qwen Code configuration directory (default: `~/.qwen`)
 - `dockerSocketPath`: Custom Docker/Podman socket path (auto-detected by default)
 - `forwardSshKeys`: Forward SSH keys from `~/.ssh` to container (default: true)
 - `forwardGpgKeys`: Forward GPG keys from `~/.gnupg` to container (default: true)
@@ -369,6 +426,69 @@ npx oh-my-opencode install --no-tui --claude=yes --gemini=no --copilot=no
 > - You can customize the path using `opencodeConfigPath` in your `claude-run.config.json`
 
 For detailed configuration options, see the [oh-my-opencode installation guide](https://github.com/code-yeongyu/oh-my-opencode/blob/master/docs/guide/installation.md).
+
+#### Codex Configuration
+
+To use OpenAI Codex, create a config file with:
+
+```jsonc
+{
+	"codeRunner": "codex",
+	"defaultShell": "codex",
+	"environment": {
+		"OPENAI_API_KEY": "your-openai-api-key"
+	}
+}
+```
+
+Codex runs with `--dangerously-bypass-approvals-and-sandbox` mode in the container. You can also authenticate via `codex login` inside the container.
+
+Configuration is stored in `~/.codex/` (including `config.toml` and `auth.json`). You can customize the config path using `codexConfigPath` in your `claude-run.config.json`.
+
+See [Codex CLI Documentation](https://github.com/openai/codex) for more details.
+
+#### Kimi Code Configuration
+
+To use Moonshot AI's Kimi Code, create a config file with:
+
+```jsonc
+{
+	"codeRunner": "kimi",
+	"defaultShell": "kimi",
+	"environment": {
+		"KIMI_API_KEY": "your-kimi-api-key",
+		"KIMI_BASE_URL": "https://api.kimi.com/coding/v1"
+	}
+}
+```
+
+Kimi Code runs with `--yolo` mode (auto-approve all operations) in the container. You can also configure the default model and other options in `~/.kimi/config.toml`.
+
+Configuration is stored in `~/.kimi/`. You can customize the config path using `kimiConfigPath` in your `claude-run.config.json`.
+
+See [Kimi Code CLI Documentation](https://github.com/MoonshotAI/kimi-cli) for more details.
+
+#### Qwen Code Configuration
+
+To use Alibaba's Qwen Code, create a config file with:
+
+```jsonc
+{
+	"codeRunner": "qwen",
+	"defaultShell": "qwen",
+	"environment": {
+		"DASHSCOPE_API_KEY": "your-dashscope-api-key"
+	}
+}
+```
+
+Qwen Code runs with `--yolo` mode (auto-approve all operations) in the container. It supports multiple model providers by configuring `~/.qwen/settings.json`.
+
+Configuration is stored in `~/.qwen/`. You can customize the config path using `qwenConfigPath` in your `claude-run.config.json`.
+
+Qwen Code also supports `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `GEMINI_API_KEY` via the `modelProviders` configuration in `settings.json`.
+
+See [Qwen Code Documentation](https://github.com/nicepkg/qwen-code) for more details.
 
 #### Mount Configuration
 
@@ -639,7 +759,12 @@ Claude Code Runner automatically discovers and forwards:
 
 ### Sandboxed Execution
 
-- Claude runs with `--dangerously-skip-permissions` flag (safe in container)
+- Code runners use their respective dangerous/auto-approve mode flags (safe in container):
+  - Claude Code: `--dangerously-skip-permissions`
+  - OpenCode: `--dangerously-skip-permissions`
+  - Codex: `--dangerously-bypass-approvals-and-sandbox`
+  - Kimi Code: `--yolo`
+  - Qwen Code: `--yolo`
 - Creates isolated branch for each session
 - Full access to run any command within the container
 - Files are copied into container (not mounted) for true isolation
@@ -686,6 +811,10 @@ The default Docker image includes:
 - Node.js, npm
 - Python 3
 - Claude Code
+- OpenCode (with oh-my-opencode plugin)
+- Codex (OpenAI)
+- Kimi Code CLI
+- Qwen Code
 - Build essentials
 
 ### Custom Dockerfile
