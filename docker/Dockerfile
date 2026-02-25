@@ -3,127 +3,103 @@ FROM docker.io/library/almalinux:10
 # Disable automatic updates for Claude Code
 # ENV DISABLE_AUTOUPDATER=1
 
-# Install system dependencies
-RUN dnf install -y epel-release && dnf install -y \
-    curl \
-    git \
-    openssh-clients \
-    python3 \
-    python3-pip \
-    gcc \
-    gcc-c++ \
-    make \
-    sudo \
-    vim \
-    jq \
-    ca-certificates \
-    gnupg2 \
-    inotify-tools \
-    rsync \
-    socat \
-    && dnf clean all
-
-# Install Node.js 24.x
-RUN curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - \
-    && dnf install -y nodejs
-
-# Install GitHub CLI
-RUN dnf install -y 'dnf-command(config-manager)' \
+# Layer 1: Install all system packages (dnf/yum) in a single layer
+RUN dnf install -y epel-release \
+    && dnf install -y 'dnf-command(config-manager)' \
     && dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo \
-    && dnf install -y gh
+    && curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - \
+    && dnf install -y \
+        curl \
+        git \
+        openssh-clients \
+        python3 \
+        python3-pip \
+        gcc \
+        gcc-c++ \
+        make \
+        sudo \
+        vim \
+        jq \
+        ca-certificates \
+        gnupg2 \
+        inotify-tools \
+        rsync \
+        socat \
+        nodejs \
+        gh \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf /var/cache/yum /tmp/*
 
-# Install Claude Code using native installer
-# Note: Alpine Linux requires libgcc, libstdc++, and ripgrep
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Install OpenCode globally via npm
-RUN npm install -g opencode-ai@latest
-
-# Install oh-my-opencode plugin for OpenCode globally via npm
-RUN npm install -g oh-my-opencode@latest
-
-# Install Codex (OpenAI) globally via npm
-RUN npm install -g @openai/codex@latest
-
-# Install Kimi Code CLI via uv (Python-based)
-RUN pip3 install uv && \
-    uv tool install --python 3.13 kimi-cli
-
-# Install Qwen Code globally via npm
-RUN npm install -g @qwen-code/qwen-code@latest
+# Layer 2: Install all code runner tools (npm/pip/curl) in a single layer
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+    && npm install -g \
+        opencode-ai@latest \
+        oh-my-opencode@latest \
+        @openai/codex@latest \
+        @qwen-code/qwen-code@latest \
+    && pip3 install --no-cache-dir uv \
+    && uv tool install --python 3.13 kimi-cli \
+    && npm cache clean --force \
+    && uv cache clean \
+    && rm -rf /tmp/* /root/.cache/pip
 
 # Ensure claude is in PATH for all users
 ENV PATH="/root/.local/bin:${PATH}"
 
-# Create a non-root user with sudo privileges
-RUN useradd -m -s /bin/bash claude && \
-    echo 'claude ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
-    usermod -aG wheel claude
-
-# Switch to claude user to install Claude Code
-USER claude
-
-# Install Claude Code for claude user
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# Install Kimi Code CLI for claude user via uv
-RUN uv tool install --python 3.13 kimi-cli
-
-# Ensure claude and kimi are in PATH for claude user
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc
-
-# Switch back to root for remaining setup
-USER root
-
-# Create workspace directory and set ownership
-RUN mkdir -p /workspace && \
-    chown -R claude:claude /workspace
+# Layer 3: Create user, workspace, git wrapper, SSH/git config — all filesystem setup
+RUN useradd -m -s /bin/bash claude \
+    && echo 'claude ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
+    && usermod -aG wheel claude \
+    && mkdir -p /workspace \
+    && chown -R claude:claude /workspace \
+    # Git wrapper script to prevent branch switching
+    && printf '%s\n' '#!/bin/bash' \
+        '# Allow the initial branch creation' \
+        'if [ ! -f /tmp/.branch-created ]; then' \
+        '    /usr/bin/git.real "$@"' \
+        '    if [[ "$1" == "checkout" ]] && [[ "$2" == "-b" ]]; then' \
+        '        touch /tmp/.branch-created' \
+        '    fi' \
+        'else' \
+        '    # After initial branch creation, prevent switching' \
+        '    if [[ "$1" == "checkout" ]] && [[ "$2" != "-b" ]] && [[ "$*" != *"--"* ]]; then' \
+        '        echo "Error: Branch switching is disabled in claude-code-runner"' \
+        '        echo "You can only create new branches with git checkout -b"' \
+        '        exit 1' \
+        '    fi' \
+        '    if [[ "$1" == "switch" ]]; then' \
+        '        echo "Error: Branch switching is disabled in claude-code-runner"' \
+        '        exit 1' \
+        '    fi' \
+        '    /usr/bin/git.real "$@"' \
+        'fi' > /usr/local/bin/git-wrapper \
+    && chmod +x /usr/local/bin/git-wrapper \
+    && mv /usr/bin/git /usr/bin/git.real \
+    && ln -s /usr/local/bin/git-wrapper /usr/bin/git \
+    # SSH config for both root and claude user
+    && mkdir -p /root/.ssh /home/claude/.ssh /home/claude/.gnupg \
+    && printf '%s\n' 'Host *' \
+        '    StrictHostKeyChecking no' \
+        '    UserKnownHostsFile /dev/null' \
+        '    AddKeysToAgent yes' > /root/.ssh/config \
+    && chmod 600 /root/.ssh/config \
+    && cp /root/.ssh/config /home/claude/.ssh/config \
+    && chown -R claude:claude /home/claude/.ssh /home/claude/.gnupg \
+    && chmod 700 /home/claude/.ssh /home/claude/.gnupg \
+    && chmod 600 /home/claude/.ssh/config \
+    # Git credential helper for root
+    && /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
 
 WORKDIR /workspace
 
-# Create a wrapper script for git that prevents branch switching
-RUN printf '%s\n' '#!/bin/bash' \
-    '# Allow the initial branch creation' \
-    'if [ ! -f /tmp/.branch-created ]; then' \
-    '    /usr/bin/git.real "$@"' \
-    '    if [[ "$1" == "checkout" ]] && [[ "$2" == "-b" ]]; then' \
-    '        touch /tmp/.branch-created' \
-    '    fi' \
-    'else' \
-    '    # After initial branch creation, prevent switching' \
-    '    if [[ "$1" == "checkout" ]] && [[ "$2" != "-b" ]] && [[ "$*" != *"--"* ]]; then' \
-    '        echo "Error: Branch switching is disabled in claude-code-runner"' \
-    '        echo "You can only create new branches with git checkout -b"' \
-    '        exit 1' \
-    '    fi' \
-    '    if [[ "$1" == "switch" ]]; then' \
-    '        echo "Error: Branch switching is disabled in claude-code-runner"' \
-    '        exit 1' \
-    '    fi' \
-    '    /usr/bin/git.real "$@"' \
-    'fi' > /usr/local/bin/git-wrapper && \
-    chmod +x /usr/local/bin/git-wrapper && \
-    mv /usr/bin/git /usr/bin/git.real && \
-    ln -s /usr/local/bin/git-wrapper /usr/bin/git
-
-# Set up SSH config for both root and claude user (support any git host)
-RUN mkdir -p /root/.ssh /home/claude/.ssh /home/claude/.gnupg && \
-    printf '%s\n' 'Host *' \
-    '    StrictHostKeyChecking no' \
-    '    UserKnownHostsFile /dev/null' \
-    '    AddKeysToAgent yes' > /root/.ssh/config && \
-    chmod 600 /root/.ssh/config && \
-    cp /root/.ssh/config /home/claude/.ssh/config && \
-    chown -R claude:claude /home/claude/.ssh /home/claude/.gnupg && \
-    chmod 700 /home/claude/.ssh /home/claude/.gnupg && \
-    chmod 600 /home/claude/.ssh/config
-
-# Set git to use credential helper for root user
-RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
-
-# Set git to use credential helper for claude user
+# Layer 4 (claude user): Install user-scoped tools + git config
 USER claude
-RUN /usr/bin/git.real config --global credential.helper 'cache --timeout=3600'
+RUN curl -fsSL https://claude.ai/install.sh | bash \
+    && uv tool install --python 3.13 kimi-cli \
+    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/claude/.bashrc \
+    && /usr/bin/git.real config --global credential.helper 'cache --timeout=3600' \
+    && uv cache clean \
+    && rm -rf /tmp/* ~/.cache/pip
 USER root
 
 # Create entrypoint script that properly sets up SSH and GPG for claude user
