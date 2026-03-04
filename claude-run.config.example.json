@@ -1,5 +1,5 @@
 {
-	"dockerImage": "claude-code-runner:latest",
+	"dockerImage": "claude-code-runner",
 	"buildImage": true,
 	"dockerfile": null,
 	"detached": false,

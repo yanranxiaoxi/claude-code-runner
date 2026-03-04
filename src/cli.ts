@@ -576,20 +576,57 @@ program
 
 			// Collect all container prefixes and image names to clean
 			const containerPrefixes = new Set<string>();
+			const baseImageNames = new Set<string>();
 			const imageNames = new Set<string>();
 
 			if (config.containerPrefix) {
 				containerPrefixes.add(config.containerPrefix);
 			}
+
+			// Extract base image name (without tag)
 			if (config.dockerImage) {
+				const baseImage = config.dockerImage.split(':')[0];
+				baseImageNames.add(baseImage);
 				imageNames.add(config.dockerImage);
 			}
 
 			// Always include defaults
 			containerPrefixes.add('claude-code-runner');
-			// Only add default image if no custom image is configured
-			if (!config.dockerImage || config.dockerImage === 'claude-code-runner:latest') {
+			baseImageNames.add('claude-code-runner');
+
+			// Only keep the explicitly configured image, not the defaults
+			if (!config.dockerImage) {
 				imageNames.add('claude-code-runner:latest');
+			}
+
+			const spinner = ora('Fetching images...').start();
+			let allImages: any[] = [];
+			try {
+				allImages = await docker.listImages();
+			}
+			catch (error: any) {
+				spinner.warn('Could not fetch all images');
+			}
+			spinner.stop();
+
+			// Find images matching base image names (excluding configured image)
+			const matchedImages = new Set<string>();
+			for (const baseImageName of baseImageNames) {
+				for (const image of allImages) {
+					if (image.RepoTags) {
+						for (const tag of image.RepoTags) {
+							const imageWithTag = tag.split(':')[0];
+							if (imageWithTag === baseImageName) {
+								matchedImages.add(tag);
+							}
+						}
+					}
+				}
+			}
+
+			// Update imageNames to include all matched images
+			for (const img of matchedImages) {
+				imageNames.add(img);
 			}
 
 			const containers = await getClaudeSandboxContainers(containerPrefixes);
@@ -621,7 +658,7 @@ program
 						type: 'confirm',
 						name: 'keep',
 						message: `Do you want to keep the configured image (${config.dockerImage})?`,
-						default: false,
+						default: true,
 					},
 				]);
 				keepConfiguredImage = keep;
@@ -629,8 +666,16 @@ program
 
 			const imagesToRemove = new Set(imageNames);
 			if (keepConfiguredImage && config.dockerImage) {
-				imagesToRemove.delete(config.dockerImage);
-				console.log(chalk.green(`✓ Will keep configured image: ${config.dockerImage}`));
+				// If configured image has no tag, also preserve the versioned tag
+				if (!config.dockerImage.includes(':')) {
+					const versionedImage = `${config.dockerImage}:v__PACKAGE_VERSION__`;
+					imagesToRemove.delete(versionedImage);
+					console.log(chalk.green(`✓ Will keep configured image version: ${versionedImage}`));
+				}
+				else {
+					imagesToRemove.delete(config.dockerImage);
+					console.log(chalk.green(`✓ Will keep configured image: ${config.dockerImage}`));
+				}
 			}
 
 			// Confirm unless -y flag is used
@@ -650,61 +695,61 @@ program
 				}
 			}
 
-			const spinner = ora('Purging containers...').start();
+			const purgeSpinner = ora('Purging containers...').start();
 			let removedContainers = 0;
 
 			// Remove containers
 			for (const c of containers) {
 				try {
 					const container = docker.getContainer(c.Id);
-					spinner.text = `Stopping ${c.Id.substring(0, 12)}...`;
+					purgeSpinner.text = `Stopping ${c.Id.substring(0, 12)}...`;
 
 					if (c.State === 'running') {
 						await container.stop({ t: 5 }); // 5 second timeout
 					}
 
-					spinner.text = `Removing ${c.Id.substring(0, 12)}...`;
+					purgeSpinner.text = `Removing ${c.Id.substring(0, 12)}...`;
 					await container.remove();
 					removedContainers++;
 				}
 				catch (error: any) {
-					spinner.warn(
+					purgeSpinner.warn(
 						`Failed to remove container ${c.Id.substring(0, 12)}: ${error.message}`,
 					);
 				}
 			}
 
 			if (removedContainers > 0) {
-				spinner.succeed(chalk.green(`✓ Removed ${removedContainers} container(s)`));
+				purgeSpinner.succeed(chalk.green(`✓ Removed ${removedContainers} container(s)`));
 			}
 
 			// Remove images only if there are images to remove
 			if (imagesToRemove.size > 0) {
-				spinner.start('Removing images...');
+				purgeSpinner.start('Removing images...');
 				let removedImages = 0;
 
 				for (const imageName of imagesToRemove) {
 					try {
 						const image = docker.getImage(imageName);
 						await image.remove({ force: true });
-						spinner.text = `Removed image: ${imageName}`;
+						purgeSpinner.text = `Removed image: ${imageName}`;
 						removedImages++;
 					}
 					catch (error: any) {
 						// Image might not exist or be in use
-						spinner.warn(`Image not found or in use: ${imageName}`);
+						purgeSpinner.warn(`Image not found or in use: ${imageName}`);
 					}
 				}
 
 				if (removedImages > 0) {
-					spinner.succeed(chalk.green(`✓ Removed ${removedImages} image(s)`));
+					purgeSpinner.succeed(chalk.green(`✓ Removed ${removedImages} image(s)`));
 				}
 				else {
-					spinner.info('No images were removed');
+					purgeSpinner.info('No images were removed');
 				}
 			}
 			else {
-				spinner.info('No images to remove');
+				purgeSpinner.info('No images to remove');
 			}
 
 			console.log(chalk.green('\n✨ Purge complete!'));

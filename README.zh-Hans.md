@@ -66,7 +66,7 @@ npm install -g claude-code-runner
 
 ### 快速开始
 
-> **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false`。默认镜像（`ghcr.io/yanranxiaoxi/claude-code-runner:latest`）会自动使用。
+> **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false`。默认镜像会自动使用与 CLI 版本匹配的标签（例如 `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`）。
 
 只需在任何目录中运行：
 
@@ -360,7 +360,7 @@ claude-run update        # 别名
 
 #### 配置选项
 
-- `dockerImage`: 要使用的基础 Docker 镜像 (默认: `claude-code-runner:latest`)
+- `dockerImage`: 要使用的基础 Docker 镜像 (默认: `claude-code-runner:latest`；当 `buildImage` 为 `false` 时，默认使用与 CLI 版本匹配的官方镜像，如 `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`)
 - `buildImage`: 在本地构建镜像（默认：true）或从仓库拉取（设置为 false）
 - `dockerfile`: 自定义 Dockerfile 的路径（可选）
 - `detached`: 在分离模式下运行容器
@@ -539,7 +539,7 @@ Qwen Code 还支持通过 `settings.json` 中的 `modelProviders` 配置使用 `
 }
 ```
 
-官方镜像 `ghcr.io/yanranxiaoxi/claude-code-runner:latest` 会自动使用。
+会自动使用与 CLI 版本匹配的官方镜像（例如 `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`）。
 
 然后运行：
 
@@ -549,9 +549,11 @@ claude-run
 
 **可用的官方镜像：**
 
-- **GitHub 容器镜像仓库**（默认）：`ghcr.io/yanranxiaoxi/claude-code-runner:latest`
-- **Docker Hub**：`docker.io/yanranxiaoxi/claude-code-runner:latest`
-- **GitLab 镜像仓库**：`registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
+- **GitHub 容器镜像仓库**（默认）：`ghcr.io/yanranxiaoxi/claude-code-runner:v<version>`
+- **Docker Hub**：`docker.io/yanranxiaoxi/claude-code-runner:v<version>`
+- **GitLab 镜像仓库**：`registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:v<version>`
+
+> **注意**：镜像标签中的 `<version>` 会自动匹配 CLI 版本号（例如 `v0.3.2`）。每个版本同时也提供 `:latest` 标签。
 
 所有镜像都具有以下优势：
 - ✅ 定期维护和更新
@@ -559,13 +561,14 @@ claude-run
 - ✅ 开箱即用
 - ✅ 启动速度更快
 - ✅ 使用默认镜像（GitHub 容器镜像仓库）时无需指定完整的镜像 URL
+- ✅ 镜像标签自动与 CLI 版本匹配，确保版本一致性
 
 要使用 Docker Hub：
 
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "docker.io/yanranxiaoxi/claude-code-runner:latest"
+	"dockerImage": "docker.io/yanranxiaoxi/claude-code-runner:v0.3.2"
 }
 ```
 
@@ -574,7 +577,7 @@ claude-run
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest"
+	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:v0.3.2"
 }
 ```
 

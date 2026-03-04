@@ -8,10 +8,16 @@ const process = require('node:process');
 const readline = require('node:readline');
 
 /**
+ * Read the package version
+ */
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+const packageVersion = packageJson.version;
+
+/**
  * Default configuration values
  */
 const DEFAULT_CONFIG = {
-	dockerImage: 'claude-code-runner:latest',
+	dockerImage: 'claude-code-runner',
 	buildImage: true,
 	containerPrefix: 'claude-code-runner',
 };
@@ -31,8 +37,9 @@ function loadConfig() {
 		};
 
 		// If buildImage is false and dockerImage wasn't explicitly set, use official image
+		// Image tag follows the CLI version (e.g., v0.3.2)
 		if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
-			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:latest';
+			finalConfig.dockerImage = `ghcr.io/yanranxiaoxi/claude-code-runner:v${packageVersion}`;
 		}
 
 		return finalConfig;

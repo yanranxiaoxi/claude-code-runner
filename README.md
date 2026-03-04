@@ -68,7 +68,7 @@ npm install -g claude-code-runner
 
 > [!TIP]
 >
-> For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image (`ghcr.io/yanranxiaoxi/claude-code-runner:latest`) will be used automatically.
+> For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image will automatically use a tag matching the CLI version (e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`).
 
 Simply run in any directory:
 
@@ -340,7 +340,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 
 #### Configuration Options
 
-- `dockerImage`: Base Docker image to use (default: `claude-code-runner:latest`)
+- `dockerImage`: Base Docker image to use (default: `claude-code-runner:latest`; when `buildImage` is `false`, defaults to the official image with a version tag matching the CLI version, e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`)
 - `buildImage`: Build the image locally (default: true) or pull from registry (set to false)
 - `dockerfile`: Path to custom Dockerfile (optional)
 - `detached`: Run container in detached mode
@@ -519,7 +519,7 @@ The easiest way is to use the official maintained image. Just set `buildImage: f
 }
 ```
 
-The official image `ghcr.io/yanranxiaoxi/claude-code-runner:latest` will be used automatically.
+The official image will be used automatically with a version tag matching the CLI version (e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`).
 
 Then run:
 
@@ -529,9 +529,11 @@ claude-run
 
 **Available Official Images:**
 
-- **GitHub Container Registry** (Default): `ghcr.io/yanranxiaoxi/claude-code-runner:latest`
-- **Docker Hub**: `docker.io/yanranxiaoxi/claude-code-runner:latest`
-- **GitLab Registry**: `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest`
+- **GitHub Container Registry** (Default): `ghcr.io/yanranxiaoxi/claude-code-runner:v<version>`
+- **Docker Hub**: `docker.io/yanranxiaoxi/claude-code-runner:v<version>`
+- **GitLab Registry**: `registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:v<version>`
+
+> **Note**: The `<version>` in the image tag automatically matches the CLI version (e.g., `v0.3.2`). A `:latest` tag is also available for each release.
 
 All images are:
 - ✅ Regularly maintained and updated
@@ -539,13 +541,14 @@ All images are:
 - ✅ Ready to use out of the box
 - ✅ Faster startup time
 - ✅ No need to specify the full image URL when using the default (GitHub Container Registry)
+- ✅ Image tag automatically matches the CLI version for consistency
 
 To use Docker Hub:
 
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "docker.io/yanranxiaoxi/claude-code-runner:latest"
+	"dockerImage": "docker.io/yanranxiaoxi/claude-code-runner:v0.3.2"
 }
 ```
 
@@ -554,7 +557,7 @@ To use GitLab Registry instead:
 ```json
 {
 	"buildImage": false,
-	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:latest"
+	"dockerImage": "registry.gitlab.soraharu.com/xiaoxi/claude-code-runner:v0.3.2"
 }
 ```
 

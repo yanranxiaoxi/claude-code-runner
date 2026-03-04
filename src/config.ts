@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const DEFAULT_CONFIG: SandboxConfig = {
-	dockerImage: 'claude-code-runner:latest',
+	dockerImage: 'claude-code-runner',
 	buildImage: true, // Build locally by default, set to false to pull from registry
 	autoPush: true,
 	autoCreatePR: true,
@@ -66,8 +66,9 @@ export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 		}
 
 		// If buildImage is false and dockerImage wasn't explicitly set, use official image
+		// Image tag follows the CLI version (e.g., v0.3.2)
 		if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
-			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:latest';
+			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:v__PACKAGE_VERSION__';
 		}
 
 		return finalConfig;

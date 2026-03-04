@@ -106,7 +106,20 @@ export class ContainerManager {
 	}
 
 	private async ensureImage(): Promise<void> {
-		const imageName = this.config.dockerImage || 'claude-code-runner:latest';
+		let imageName = this.config.dockerImage || 'claude-code-runner:latest';
+
+		// Auto-add version tag if image name doesn't include a tag
+		// When buildImage is false (using pre-built image), use the official versioned image
+		if (!imageName.includes(':')) {
+			if (this.config.buildImage === false) {
+				// For pre-built image, append version tag
+				imageName = `${imageName}:v__PACKAGE_VERSION__`;
+			}
+			else {
+				// For local build, append :latest
+				imageName = `${imageName}:latest`;
+			}
+		}
 
 		// Check if image already exists
 		try {
