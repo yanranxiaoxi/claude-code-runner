@@ -67,6 +67,8 @@ npm install -g claude-code-runner
 ### 快速开始
 
 > **提示**：为了最快的启动速度，使用预构建的官方镜像：在配置中设置 `buildImage: false`。默认镜像会自动使用与 CLI 版本匹配的标签（例如 `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`）。
+>
+> 如果你想始终使用最新的组件（Claude Code、OpenCode 等），可以启用 `useNightlyImage: true` 来使用 `nightly` 标签，该镜像每次推送到主分支时都会重新构建。你也可以设置 `buildImage: true` 从最新的 Dockerfile 在本地构建。
 
 只需在任何目录中运行：
 
@@ -117,6 +119,7 @@ claude-run
 > ```json
 > {
 >   "buildImage": false,
+>   "useNightlyImage": true,
 >   "environment": {
 >     "ANTHROPIC_AUTH_TOKEN": "<YOUR_ANTHROPIC_AUTH_TOKEN>",
 >     "ANTHROPIC_BASE_URL": "https://api.ai.soraharu.com",
@@ -127,6 +130,22 @@ claude-run
 > ```
 >
 > 将 `<YOUR_ANTHROPIC_AUTH_TOKEN>` 替换为你的实际令牌，`ANTHROPIC_BASE_URL` 替换为你的代理地址。
+
+> [!TIP]
+>
+> **使用 Nightly 镜像**
+>
+> Docker 镜像内置了 Claude Code、OpenCode、Codex、Kimi Code 和 Qwen Code。这些工具会频繁更新。如果你想始终使用最新版本而不等待新的 CLI 发布，有两种方式：
+>
+> 1. **使用 nightly 标签** — 在配置中设置 `buildImage: false` 和 `useNightlyImage: true`。这将拉取 `ghcr.io/yanranxiaoxi/claude-code-runner:nightly`，每次推送到主分支时都会重新构建。
+> 2. **本地构建** — 设置 `buildImage: true`（默认值）。这将在镜像未缓存时从最新的 Dockerfile 构建。
+>
+> ```json
+> {
+>   "buildImage": false,
+>   "useNightlyImage": true
+> }
+> ```
 
 ### 命令
 
@@ -321,6 +340,7 @@ claude-run update        # 别名
 {
 	"dockerImage": "claude-code-runner:latest",
 	"buildImage": true,
+	"useNightlyImage": false,
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
@@ -362,6 +382,7 @@ claude-run update        # 别名
 
 - `dockerImage`: 要使用的基础 Docker 镜像 (默认: `claude-code-runner:latest`；当 `buildImage` 为 `false` 时，默认使用与 CLI 版本匹配的官方镜像，如 `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`)
 - `buildImage`: 在本地构建镜像（默认：true）或从仓库拉取（设置为 false）
+- `useNightlyImage`: 当 `buildImage` 为 `false` 且 `dockerImage` 未显式设置时，使用 `nightly` 标签替代版本标签。nightly 镜像在每次推送到主分支时重新构建，包含所有代码运行器的最新版本（默认：false）
 - `dockerfile`: 自定义 Dockerfile 的路径（可选）
 - `detached`: 在分离模式下运行容器
 - `autoPush`: 提交后自动推送分支

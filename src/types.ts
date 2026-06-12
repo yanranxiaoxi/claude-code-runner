@@ -77,6 +77,7 @@ export interface SandboxConfig {
 	dockerImage?: string;
 	dockerfile?: string;
 	buildImage?: boolean;
+	useNightlyImage?: boolean; // Default: false - when buildImage is false and dockerImage not set, use nightly tag instead of versioned tag
 	containerPrefix?: string;
 	autoPush?: boolean;
 	autoCreatePR?: boolean;

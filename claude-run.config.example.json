@@ -1,6 +1,7 @@
 {
 	"dockerImage": "claude-code-runner",
 	"buildImage": true,
+	"useNightlyImage": false,
 	"dockerfile": null,
 	"detached": false,
 	"autoPush": true,

@@ -69,6 +69,8 @@ npm install -g claude-code-runner
 > [!TIP]
 >
 > For the fastest setup with pre-built image, use the official image by setting `buildImage: false` in your config. The default image will automatically use a tag matching the CLI version (e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`).
+>
+> To always get the latest runtime components (Claude Code, OpenCode, etc.), enable `useNightlyImage: true` to use the `nightly` tag, which is rebuilt daily with the freshest tooling. Alternatively, set `buildImage: true` to build locally from the latest Dockerfile.
 
 Simply run in any directory:
 
@@ -109,6 +111,22 @@ This will:
 > ```
 >
 > This allows Claude Code to use your SSH keys without repeatedly prompting for the passphrase.
+
+> [!TIP]
+>
+> **Using the Nightly Image**
+>
+> The Docker image bundles Claude Code, OpenCode, Codex, Kimi Code, and Qwen Code. These tools update frequently. To stay current without waiting for a new CLI release, you have two options:
+>
+> 1. **Use the nightly tag** — Set `buildImage: false` and `useNightlyImage: true` in your config. This pulls `ghcr.io/yanranxiaoxi/claude-code-runner:nightly`, which is rebuilt on every push to the main branch.
+> 2. **Build locally** — Set `buildImage: true` (the default). This builds from the latest Dockerfile whenever the image is not already cached.
+>
+> ```json
+> {
+>   "buildImage": false,
+>   "useNightlyImage": true
+> }
+> ```
 
 ### Commands
 
@@ -301,6 +319,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 {
 	"dockerImage": "claude-code-runner:latest",
 	"buildImage": true,
+	"useNightlyImage": false,
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
@@ -342,6 +361,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 
 - `dockerImage`: Base Docker image to use (default: `claude-code-runner:latest`; when `buildImage` is `false`, defaults to the official image with a version tag matching the CLI version, e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`)
 - `buildImage`: Build the image locally (default: true) or pull from registry (set to false)
+- `useNightlyImage`: When `buildImage` is `false` and `dockerImage` is not explicitly set, use the `nightly` tag instead of the versioned tag. The nightly image is rebuilt on every push to the main branch and contains the latest versions of all code runners (default: false)
 - `dockerfile`: Path to custom Dockerfile (optional)
 - `detached`: Run container in detached mode
 - `autoPush`: Automatically push branches after commits
