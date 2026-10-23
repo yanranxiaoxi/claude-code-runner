@@ -1,6 +1,9 @@
 {
 	"buildImage": false,
 	"useNightlyImage": true,
+	"webUiHost": "127.0.0.1",
+	"webUiPort": 3456,
+	"webUiAllowRemote": false,
 	"codeRunner": "claude",
 	"environment": {
 		"ANTHROPIC_AUTH_TOKEN": "<YOUR_ANTHROPIC_AUTH_TOKEN>",

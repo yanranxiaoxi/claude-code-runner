@@ -1,5 +1,6 @@
 import type Docker from 'dockerode';
 import type { WorkspaceMode } from './types';
+import type { WebUiListenAddress } from './web-ui-config';
 import { Buffer } from 'node:buffer';
 import { exec, execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -14,6 +15,7 @@ import { Server } from 'socket.io';
 import { getContainerRuntimeCmd } from './docker-config';
 import { ShadowRepository } from './git/shadow-repository';
 import { getCurrentBranch, getGitRemoteUrl, getWorkingTreeChanges, isGitInstalled, isGitRepository } from './git/workspace-status';
+import { DEFAULT_WEB_UI_HOST, DEFAULT_WEB_UI_PORT, formatWebUiUrl } from './web-ui-config';
 
 const execAsync = promisify(exec);
 
@@ -31,7 +33,8 @@ export class WebUIServer {
 	private io: Server;
 	private docker: Docker;
 	private sessions: Map<string, SessionInfo> = new Map(); // container -> session mapping
-	private port: number = 3456;
+	private host: string = DEFAULT_WEB_UI_HOST;
+	private port: number = DEFAULT_WEB_UI_PORT;
 	private shadowRepos: Map<string, ShadowRepository> = new Map(); // container -> shadow repo
 	private syncInProgress: Set<string> = new Set(); // Track containers currently syncing
 	private originalRepo: string = '';
@@ -41,9 +44,11 @@ export class WebUIServer {
 	private containerCmd: string; // 'docker' or 'podman'
 	private wasNonGitInit: boolean = false;
 
-	constructor(docker: Docker, containerRuntime?: string) {
+	constructor(docker: Docker, containerRuntime?: string, listen: Partial<WebUiListenAddress> = {}) {
 		this.docker = docker;
 		this.containerCmd = containerRuntime || getContainerRuntimeCmd();
+		this.host = listen.host || DEFAULT_WEB_UI_HOST;
+		this.port = listen.port ?? DEFAULT_WEB_UI_PORT;
 		this.app = express();
 		this.httpServer = createServer(this.app);
 		this.io = new Server(this.httpServer, {
@@ -1218,22 +1223,21 @@ export class WebUIServer {
 	}
 
 	async start(): Promise<string> {
+		const host = this.host;
 		return new Promise((resolve, reject) => {
-			this.httpServer.listen(this.port, () => {
-				const url = `http://localhost:${this.port}`;
+			const onListening = () => {
+				const url = formatWebUiUrl(host, this.port);
 				console.log(chalk.green(`✓ Web UI server started at ${url}`));
 				resolve(url);
-			});
+			};
+
+			this.httpServer.listen(this.port, host, onListening);
 
 			this.httpServer.on('error', (err: any) => {
 				if (err.code === 'EADDRINUSE') {
 					// Try next port
 					this.port++;
-					this.httpServer.listen(this.port, () => {
-						const url = `http://localhost:${this.port}`;
-						console.log(chalk.green(`✓ Web UI server started at ${url}`));
-						resolve(url);
-					});
+					this.httpServer.listen(this.port, host, onListening);
 				}
 				else {
 					reject(err);

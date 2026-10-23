@@ -15,6 +15,7 @@ import { getImageBaseName, resolveDockerImage } from './image-name';
 import { ClaudeSandbox } from './index';
 import { CODE_RUNNERS } from './types';
 import { WebUIServer } from './web-server';
+import { resolveWebUiListen } from './web-ui-config';
 
 // Package info - injected at build time
 const currentVersion = '__PACKAGE_VERSION__';
@@ -346,6 +347,7 @@ program
 		const spinner = ora('Looking for containers...').start();
 
 		try {
+			const config = await loadConfig('./claude-run.config.json');
 			let targetContainerId = containerId;
 
 			// If no container ID provided, show selection UI
@@ -379,7 +381,8 @@ program
 			}
 
 			// Always launch web UI
-			const webServer = new WebUIServer(docker, containerRuntime);
+			const webUiListen = await resolveWebUiListen(config);
+			const webServer = new WebUIServer(docker, containerRuntime, webUiListen);
 			webServer.setRepoInfo(workDir, '', workspaceMode);
 			webServer.setNonGitInit(nonGitInit);
 			const url = await webServer.start();

@@ -82,7 +82,7 @@ This will:
 
 1. Choose a workspace mode (unless `workspaceMode` is set in config)
 2. Start a Docker container with Claude Code
-3. Launch a web UI at `http://localhost:3456`
+3. Launch a web UI at `http://127.0.0.1:3456`
 4. Open your browser automatically
 
 > [!IMPORTANT]
@@ -353,6 +353,9 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 	"autoPush": true,
 	"autoCreatePR": true,
 	"autoStartClaude": true,
+	"webUiHost": "127.0.0.1",
+	"webUiPort": 3456,
+	"webUiAllowRemote": false,
 	"envFile": ".env",
 	"environment": {
 		"NODE_ENV": "development"
@@ -396,6 +399,9 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `autoPush`: Automatically push branches after commits
 - `autoCreatePR`: Automatically create pull requests
 - `autoStartClaude`: Start Claude Code automatically (default: true)
+- `webUiHost`: Web UI listen address (default: `127.0.0.1`)
+- `webUiPort`: Web UI listen port (default: `3456`)
+- `webUiAllowRemote`: Allow binding the Web UI to a non-loopback address without an interactive confirmation (default: false)
 - `codeRunner`: Which code runner to use: `"claude"`, `"opencode"`, `"codex"`, `"kimi"`, or `"qwen"` (default: `"claude"`)
 - `defaultShell`: Shell to start with: `"claude"`, `"opencode"`, `"codex"`, `"kimi"`, `"qwen"`, or `"bash"` (default: matches `codeRunner`)
 - `envFile`: Load environment variables from file (e.g., `.env`)
@@ -781,13 +787,17 @@ claude-run --web
 This will:
 
 - Start the container in detached mode
-- Launch a web server on `http://localhost:3456`
+- Launch a web server on `http://127.0.0.1:3456` by default
 - Open your browser automatically
 - Provide a full terminal interface with:
   - Real-time terminal streaming
   - Copy/paste support
   - Terminal resizing
   - Reconnection capabilities
+
+You can change the listen address and port with `webUiHost` and `webUiPort`. Binding to a non-loopback address (for example `0.0.0.0` or a LAN IP) triggers a confirmation prompt unless `webUiAllowRemote` is set to `true`.
+
+> **Security warning:** The Web UI has no authentication and no TLS. When bound to a non-loopback address, anyone who can reach it can open a terminal in the container, run arbitrary commands as the container user, read/modify/delete files in the mounted workspace, and access forwarded credentials, SSH keys, and environment variables. The container user also has passwordless sudo. Prefer an SSH tunnel, VPN, firewall, or authenticated reverse proxy, and only expose the Web UI on trusted networks.
 
 Perfect for when you want to monitor Claude's work while doing other tasks.
 

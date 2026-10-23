@@ -80,7 +80,7 @@ claude-run
 
 1. 选择工作区模式（或使用配置中的 `workspaceMode`）
 2. 启动一个包含 Claude Code 的 Docker 容器
-3. 在 `http://localhost:3456` 上启动 Web UI
+3. 在 `http://127.0.0.1:3456` 上启动 Web UI
 4. 自动打开浏览器
 
 > [!IMPORTANT]
@@ -374,6 +374,9 @@ claude-run update        # 别名
 	"autoPush": true,
 	"autoCreatePR": true,
 	"autoStartClaude": true,
+	"webUiHost": "127.0.0.1",
+	"webUiPort": 3456,
+	"webUiAllowRemote": false,
 	"envFile": ".env",
 	"environment": {
 		"NODE_ENV": "development"
@@ -417,6 +420,9 @@ claude-run update        # 别名
 - `autoPush`: 提交后自动推送分支
 - `autoCreatePR`: 自动创建拉取请求
 - `autoStartClaude`: 自动启动 Claude Code (默认: true)
+- `webUiHost`: Web UI 监听地址（默认：`127.0.0.1`）
+- `webUiPort`: Web UI 监听端口（默认：`3456`）
+- `webUiAllowRemote`: 允许 Web UI 绑定到非回环地址且不进行交互确认（默认：false）
 - `codeRunner`: 要使用的代码运行器: `"claude"`、`"opencode"`、`"codex"`、`"kimi"` 或 `"qwen"` (默认: `"claude"`)
 - `defaultShell`: 启动时使用的 shell: `"claude"`、`"opencode"`、`"codex"`、`"kimi"`、`"qwen"` 或 `"bash"` (默认: 与 `codeRunner` 一致)
 - `envFile`: 从文件加载环境变量 (例如 `.env`)
@@ -802,13 +808,17 @@ claude-run --web
 这将：
 
 - 以分离模式启动容器
-- 在 `http://localhost:3456` 上启动 Web 服务器
+- 默认在 `http://127.0.0.1:3456` 上启动 Web 服务器
 - 自动打开浏览器
 - 提供完整的终端界面，具有：
   - 实时终端流
   - 复制/粘贴支持
   - 终端调整大小
   - 重新连接功能
+
+可以通过 `webUiHost` 和 `webUiPort` 修改监听地址与端口。绑定到非回环地址（例如 `0.0.0.0` 或局域网 IP）时会触发确认提示；在配置中设置 `webUiAllowRemote: true` 可以跳过提示。
+
+> **安全警告：** Web UI 没有鉴权，也没有 TLS。绑定到非回环地址后，任何能访问该地址的人都可以在容器内打开终端、以容器用户身份执行任意命令、读取/修改/删除挂载工作区中的文件，并访问转发进来的凭证、SSH 密钥和环境变量。容器用户还拥有免密 sudo 权限。建议使用 SSH 隧道、VPN、防火墙或带鉴权的反向代理，并且只在可信网络中暴露 Web UI。
 
 非常适合在处理其他任务时监控 Claude 的工作。
 

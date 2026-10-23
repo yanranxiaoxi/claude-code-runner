@@ -11,6 +11,9 @@ const DEFAULT_CONFIG: SandboxConfig = {
 	autoPush: true,
 	autoCreatePR: true,
 	autoStartClaude: true,
+	webUiHost: '127.0.0.1',
+	webUiPort: 3456,
+	webUiAllowRemote: false,
 	defaultShell: 'claude', // Default to Claude mode for backward compatibility
 	codeRunner: 'claude', // Default to Claude Code
 	claudeConfigPath: path.join(os.homedir(), '.claude.json'),
@@ -69,11 +72,28 @@ export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 		);
 	}
 
+	if (userConfig.webUiHost !== undefined && (typeof userConfig.webUiHost !== 'string' || userConfig.webUiHost.trim().length === 0)) {
+		throw new Error('Invalid webUiHost. Expected a non-empty hostname or IP address.');
+	}
+
+	if (
+		userConfig.webUiPort !== undefined
+		&& (!Number.isInteger(userConfig.webUiPort) || userConfig.webUiPort < 1 || userConfig.webUiPort > 65535)
+	) {
+		throw new Error(`Invalid webUiPort "${String(userConfig.webUiPort)}". Expected an integer between 1 and 65535.`);
+	}
+
+	if (userConfig.webUiAllowRemote !== undefined && typeof userConfig.webUiAllowRemote !== 'boolean') {
+		throw new Error('Invalid webUiAllowRemote. Expected true or false.');
+	}
+
 	// Merge with defaults
 	const finalConfig = {
 		...DEFAULT_CONFIG,
 		...userConfig,
 	};
+
+	finalConfig.webUiHost = (finalConfig.webUiHost || '127.0.0.1').trim();
 
 	// Resolve code runner for backward compatibility
 	finalConfig.codeRunner = resolveCodeRunner(finalConfig);

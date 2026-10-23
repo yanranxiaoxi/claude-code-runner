@@ -15,6 +15,7 @@ import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-conf
 import { GitMonitor } from './git-monitor';
 import { UIManager } from './ui';
 import { WebUIServer } from './web-server';
+import { resolveWebUiListen } from './web-ui-config';
 import {
 	assertNoDirectBranchOptions,
 	assertSafeDirectPath,
@@ -256,7 +257,8 @@ export class ClaudeSandbox {
 		}
 
 		// Always launch web UI
-		this.webServer = new WebUIServer(this.docker, this.containerRuntime);
+		const webUiListen = await resolveWebUiListen(this.config);
+		this.webServer = new WebUIServer(this.docker, this.containerRuntime, webUiListen);
 
 		// Pass repo info to web server
 		this.webServer.setRepoInfo(workDir, branchName, this.workspaceMode);
@@ -581,7 +583,8 @@ export class ClaudeSandbox {
 			console.log(chalk.blue(`Reconnecting to container: ${selectedContainer.name}...`));
 
 			// Start web UI
-			this.webServer = new WebUIServer(this.docker, this.containerRuntime);
+			const webUiListen = await resolveWebUiListen(this.config);
+			this.webServer = new WebUIServer(this.docker, this.containerRuntime, webUiListen);
 			this.webServer.setRepoInfo(selectedContainer.workDir, '', this.workspaceMode);
 			this.webServer.setNonGitInit(this.wasNonGitInit);
 

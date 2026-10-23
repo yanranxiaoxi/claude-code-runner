@@ -90,6 +90,9 @@ export interface SandboxConfig {
 	autoPush?: boolean;
 	autoCreatePR?: boolean;
 	autoStartClaude?: boolean;
+	webUiHost?: string; // Web UI listen address (default: 127.0.0.1)
+	webUiPort?: number; // Web UI listen port (default: 3456)
+	webUiAllowRemote?: boolean; // Allow non-loopback Web UI binds without prompting (default: false)
 	defaultShell?: 'claude' | 'opencode' | 'codex' | 'kimi' | 'qwen' | 'bash';
 	codeRunner?: CodeRunner; // Which code runner to use
 	claudeConfigPath?: string;
