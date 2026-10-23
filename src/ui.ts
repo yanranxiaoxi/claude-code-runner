@@ -1,4 +1,4 @@
-import type { CommitInfo } from './types';
+import type { CommitInfo, WorkspaceMode } from './types';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
@@ -62,6 +62,78 @@ export class UIManager {
 		]);
 
 		return action;
+	}
+
+	async askWorkspaceMode(): Promise<WorkspaceMode> {
+		console.log('');
+		console.log(chalk.cyan.bold('Workspace mode'));
+		console.log(chalk.gray('  Shadow (recommended): copy files into an isolated Git shadow workspace.'));
+		console.log(chalk.gray('                        Your host directory is not mounted.'));
+		console.log(chalk.gray('  Direct:               mount the current directory read-write into the container.'));
+		console.log(chalk.gray('                        Edits apply immediately and there is no snapshot/rollback.'));
+		console.log(chalk.yellow('  Direct mode exposes all files in the directory, including ignored files and secrets.'));
+		console.log('');
+
+		const { mode } = await inquirer.prompt([
+			{
+				type: 'list',
+				name: 'mode',
+				message: 'Choose workspace mode:',
+				choices: [
+					{
+						name: 'Shadow workspace (recommended) - host directory stays untouched',
+						value: 'shadow',
+						short: 'Shadow',
+					},
+					{
+						name: 'Direct workspace - mount current directory read-write (no rollback)',
+						value: 'direct',
+						short: 'Direct',
+					},
+				],
+				default: 'shadow',
+			},
+		]);
+
+		return mode as WorkspaceMode;
+	}
+
+	showDirectModeWarning(workDir: string): void {
+		console.log('');
+		console.log(chalk.yellow.bold('⚠ Direct workspace mode'));
+		console.log(chalk.white(`  Source: ${workDir}`));
+		console.log(chalk.white('  Target: /workspace (read-write)'));
+		console.log(chalk.gray('  - All files, including ignored files and secrets, are visible to the container.'));
+		console.log(chalk.gray('  - Changes are applied immediately; this tool does not create snapshots or backups.'));
+		console.log(chalk.gray('    Commit/stash or back up important work before continuing.'));
+		console.log(chalk.gray('  - Branch/PR options are disabled and Git is restricted to read-only operations.'));
+		console.log(chalk.gray('  - setupCommands run only after explicit confirmation.'));
+		console.log(chalk.gray('  - Additional volumes/mounts in the config may expose more host paths.'));
+		console.log('');
+	}
+
+	async confirmDirectSetupCommands(workDir: string, commands: string[]): Promise<boolean> {
+		console.log('');
+		console.log(chalk.yellow.bold('⚠ Direct workspace mode: setupCommands require confirmation'));
+		console.log(chalk.white(`  Working directory: ${workDir}`));
+		console.log(chalk.gray('  These commands will run in your host directory, not in an isolated copy:'));
+		commands.forEach((command, index) => {
+			console.log(chalk.gray(`    ${index + 1}. ${command}`));
+		});
+		console.log(chalk.gray('  They are not sandboxed and may modify or delete files.'));
+		console.log(chalk.gray('  Git is restricted to read-only operations in direct mode.'));
+		console.log('');
+
+		const { approved } = await inquirer.prompt([
+			{
+				type: 'confirm',
+				name: 'approved',
+				message: 'Run these commands in the host directory?',
+				default: false,
+			},
+		]);
+
+		return approved;
 	}
 
 	async askGitInit(): Promise<boolean> {

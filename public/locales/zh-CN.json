@@ -11,6 +11,12 @@
 		"terminal": "终端",
 		"changes": "更改"
 	},
+	"workspaceMode": {
+		"shadow": "Shadow",
+		"direct": "Direct",
+		"shadowTooltip": "文件会复制到隔离的 Git shadow 工作区。",
+		"directTooltip": "直接挂载你的当前工作目录。"
+	},
 	"terminal": {
 		"connectingToContainer": "正在连接到容器...",
 		"clear": "清屏",
@@ -43,7 +49,12 @@
 		"fileStatusModified": "已修改",
 		"fileStatusDeleted": "已删除",
 		"fileStatusAdded": "已添加",
-		"fileStatusUnknown": "状态: {{status}}"
+		"fileStatusUnknown": "状态: {{status}}",
+		"directModeNotice": "Direct 工作区模式：修改会直接写入 {{path}}。本工具不创建快照或备份，并且已禁用提交/推送。",
+		"noChangesDirect": "当前工作目录中未检测到更改。",
+		"changeTrackingUnavailable": "变更追踪不可用",
+		"changeTrackingUnavailableDescription": "当前目录不是 Git 仓库，或 Git 不可用。direct 模式下仍然可以直接修改文件。",
+		"commitDisabledDirect": "Direct 工作区模式下已禁用提交和推送。"
 	},
 	"status": {
 		"connected": "已连接",

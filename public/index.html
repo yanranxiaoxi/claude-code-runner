@@ -424,6 +424,37 @@
         font-size: 0.875rem;
       }
 
+      .workspace-mode-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        margin-right: 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1.4;
+        vertical-align: text-bottom;
+      }
+
+      .workspace-mode-badge.shadow {
+        background-color: #30363d;
+        color: #c9d1d9;
+      }
+
+      .workspace-mode-badge.direct {
+        background-color: #9e6a03;
+        color: #ffffff;
+      }
+
+      .direct-mode-notice {
+        margin: 1rem 0;
+        padding: 0.75rem 1rem;
+        border: 1px solid #9e6a03;
+        border-radius: 6px;
+        background-color: rgba(158, 106, 3, 0.12);
+        color: #e3b341;
+        font-size: 0.875rem;
+      }
+
       .pr-badge {
         display: inline-block;
         padding: 2px 6px;
@@ -648,6 +679,11 @@
             <option value="zh-CN">简体中文</option>
           </select>
         </div>
+        <span
+          class="workspace-mode-badge"
+          id="workspace-mode-badge"
+          style="display: none"
+        ></span>
         <span
           class="git-info"
           id="git-info"

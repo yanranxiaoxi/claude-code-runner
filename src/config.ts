@@ -2,6 +2,7 @@ import type { CodeRunner, SandboxConfig } from './types';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { isWorkspaceMode } from './types';
 
 const DEFAULT_CONFIG: SandboxConfig = {
 	dockerImage: 'claude-code-runner',
@@ -47,42 +48,53 @@ function resolveCodeRunner(config: SandboxConfig): CodeRunner {
 }
 
 export async function loadConfig(configPath: string): Promise<SandboxConfig> {
+	let userConfig: Partial<SandboxConfig>;
+
 	try {
 		const fullPath = path.resolve(configPath);
 		const configContent = await fs.readFile(fullPath, 'utf-8');
-		const userConfig = JSON.parse(configContent);
-
-		// Merge with defaults
-		const finalConfig = {
-			...DEFAULT_CONFIG,
-			...userConfig,
-		};
-
-		// Resolve code runner for backward compatibility
-		finalConfig.codeRunner = resolveCodeRunner(finalConfig);
-
-		// Sync defaultShell with codeRunner if not explicitly set to 'bash'
-		if (finalConfig.defaultShell !== 'bash') {
-			finalConfig.defaultShell = finalConfig.codeRunner;
-		}
-
-		// If buildImage is false and dockerImage wasn't explicitly set, use official image
-		// When useNightlyImage is true, use the nightly tag; otherwise use the versioned tag
-		if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
-			if (finalConfig.useNightlyImage) {
-				finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:nightly';
-			}
-			else {
-				finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:v__PACKAGE_VERSION__';
-			}
-		}
-
-		return finalConfig;
+		const parsed = JSON.parse(configContent);
+		userConfig = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+			? parsed
+			: {};
 	}
-	catch (error) {
-		// Config file not found or invalid, use defaults
-		return DEFAULT_CONFIG;
+	catch {
+		// Config file not found or invalid, use a fresh copy of the defaults.
+		return { ...DEFAULT_CONFIG };
 	}
+
+	if (userConfig.workspaceMode !== undefined && !isWorkspaceMode(userConfig.workspaceMode)) {
+		throw new Error(
+			`Invalid workspaceMode "${String(userConfig.workspaceMode)}". Expected "shadow" or "direct".`,
+		);
+	}
+
+	// Merge with defaults
+	const finalConfig = {
+		...DEFAULT_CONFIG,
+		...userConfig,
+	};
+
+	// Resolve code runner for backward compatibility
+	finalConfig.codeRunner = resolveCodeRunner(finalConfig);
+
+	// Sync defaultShell with codeRunner if not explicitly set to 'bash'
+	if (finalConfig.defaultShell !== 'bash') {
+		finalConfig.defaultShell = finalConfig.codeRunner;
+	}
+
+	// If buildImage is false and dockerImage wasn't explicitly set, use official image
+	// When useNightlyImage is true, use the nightly tag; otherwise use the versioned tag
+	if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
+		if (finalConfig.useNightlyImage) {
+			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:nightly';
+		}
+		else {
+			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:v__PACKAGE_VERSION__';
+		}
+	}
+
+	return finalConfig;
 }
 
 export async function saveConfig(

@@ -7,6 +7,9 @@ let socket;
 let fitAddon;
 let webLinksAddon;
 let containerId;
+let workspaceMode = 'shadow';
+let workspacePath = '';
+let changeTrackingAvailable = true;
 
 // Input detection state
 let isWaitingForInput = false;
@@ -419,13 +422,16 @@ function initSocket() {
 	socket.on('attached', (data) => {
 		console.log('Attached to container:', data.containerId);
 		containerId = data.containerId;
+		workspaceMode = data.workspaceMode || 'shadow';
+		workspacePath = data.workspacePath || '';
+		updateWorkspaceModeBadge(workspaceMode);
 		updateStatus(
 			'connected',
 			`Connected to ${data.containerId.substring(0, 12)}`,
 		);
 
 		// Check if this was initialized from a non-git directory
-		if (data.wasNonGitInit) {
+		if (data.wasNonGitInit && workspaceMode === 'shadow') {
 			showNonGitWarningModal();
 		}
 
@@ -535,6 +541,24 @@ function initSocket() {
 		console.log('[SYNC] Summary:', data.summary);
 		console.log('[SYNC] Diff data:', data.diffData);
 
+		if (data.mode) {
+			workspaceMode = data.mode;
+		}
+		if (data.workspacePath) {
+			workspacePath = data.workspacePath;
+		}
+		if (data.changeTrackingAvailable !== undefined) {
+			changeTrackingAvailable = data.changeTrackingAvailable;
+		}
+		updateWorkspaceModeBadge(workspaceMode);
+
+		if (data.changeTrackingAvailable === false) {
+			updateStatus('connected', `Connected to ${containerId.substring(0, 12)}`);
+			showChangeTrackingUnavailable(data);
+			updateChangesTabBadge(0);
+			return;
+		}
+
 		if (data.hasChanges) {
 			// Keep showing container ID in status
 			updateStatus('connected', `Connected to ${containerId.substring(0, 12)}`);
@@ -546,7 +570,7 @@ function initSocket() {
 		}
 		else {
 			updateStatus('connected', `Connected to ${containerId.substring(0, 12)}`);
-			clearChangesTab();
+			clearChangesTab(data);
 			updateChangesTabBadge(0);
 		}
 	});
@@ -643,6 +667,34 @@ function t(key, fallback) {
 	return fallback || key;
 }
 
+function tf(key, params, fallback) {
+	if (typeof I18n !== 'undefined' && I18n.ready()) {
+		return I18n.t(key, params);
+	}
+	return fallback || key;
+}
+
+function updateWorkspaceModeBadge(mode) {
+	const badge = document.getElementById('workspace-mode-badge');
+	if (!badge) {
+		return;
+	}
+
+	if (!mode) {
+		badge.style.display = 'none';
+		return;
+	}
+
+	const isDirect = mode === 'direct';
+	badge.textContent = t(isDirect ? 'workspaceMode.direct' : 'workspaceMode.shadow', isDirect ? 'Direct' : 'Shadow');
+	badge.title = t(
+		isDirect ? 'workspaceMode.directTooltip' : 'workspaceMode.shadowTooltip',
+		isDirect ? 'Files are mounted directly from your working directory.' : 'Files are copied into an isolated Git workspace.',
+	);
+	badge.className = `workspace-mode-badge ${isDirect ? 'direct' : 'shadow'}`;
+	badge.style.display = 'inline-block';
+}
+
 // Control functions
 function clearTerminal() {
 	term.clear();
@@ -728,6 +780,11 @@ function updateGitInfo(data) {
 	const branchNameElement = document.getElementById('branch-name');
 	const prInfoElement = document.getElementById('pr-info');
 
+	if (data.mode) {
+		workspaceMode = data.mode;
+	}
+	updateWorkspaceModeBadge(workspaceMode);
+
 	if (data.currentBranch) {
 		// Clear existing content
 		branchNameElement.innerHTML = '';
@@ -755,6 +812,10 @@ function updateGitInfo(data) {
 		}
 
 		gitInfoElement.style.display = 'inline-block';
+	}
+	else {
+		branchNameElement.innerHTML = '';
+		gitInfoElement.style.display = 'none';
 	}
 
 	// Clear existing PR info
@@ -801,6 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (document.body.classList.contains('input-needed')) {
 			document.title = `⚠️ ${t('messages.inputNeeded', 'Need Input')} - ${originalPageTitle}`;
 		}
+		updateWorkspaceModeBadge(workspaceMode);
 	});
 
 	initTerminal();
@@ -959,17 +1021,16 @@ function updateChangesTab(syncData) {
 				})
 			: I18n.t('changes.noChangesTitle');
 
-	container.innerHTML = `
-        <div class="changes-summary">
-            <strong>${I18n.t('changes.changesSummary')}</strong> ${syncData.summary}
-            <div class="diff-stats">📊 ${statsText}</div>
-        </div>
-        
-        <div class="diff-viewer">
-            ${formatDiffForDisplay(syncData.diffData)}
-        </div>
-        
-        <div class="git-actions">
+	const isDirect = syncData.mode === 'direct' || workspaceMode === 'direct';
+	const canCommit = syncData.canCommit !== false && !isDirect;
+	const directNotice = isDirect
+		? `<div class="direct-mode-notice">
+                <strong>${t('workspaceMode.direct', 'Direct')}</strong>
+                ${tf('changes.directModeNotice', { path: escapeHtml(syncData.workspacePath || workspacePath) }, 'Changes are written directly to your working directory. Commit and push are disabled.')}
+            </div>`
+		: '';
+	const gitActions = canCommit
+		? `<div class="git-actions">
             <h3>${I18n.t('changes.commitChanges')}</h3>
             <textarea 
                 id="commit-message" 
@@ -997,21 +1058,43 @@ ${syncData.summary}</textarea>
                     ${I18n.t('changes.pushButton')}
                 </button>
             </div>
+        </div>`
+		: '';
+
+	container.innerHTML = `
+        <div class="changes-summary">
+            <strong>${I18n.t('changes.changesSummary')}</strong> ${syncData.summary}
+            <div class="diff-stats">📊 ${statsText}</div>
         </div>
+
+        <div class="diff-viewer">
+            ${formatDiffForDisplay(syncData.diffData)}
+        </div>
+
+        ${directNotice}
+        ${gitActions}
     `;
 
 	// Store sync data for later use
 	window.currentSyncData = syncData;
 }
 
-function clearChangesTab() {
+function clearChangesTab(syncData) {
 	const container = document.getElementById('changes-container');
+	const isDirect = (syncData && syncData.mode === 'direct') || workspaceMode === 'direct';
+	const directNotice = isDirect
+		? `<p>${tf('changes.directModeNotice', { path: escapeHtml((syncData && syncData.workspacePath) || workspacePath) }, 'Changes are written directly to your working directory.')}</p>`
+		: '';
+	const descriptionKey = isDirect ? 'changes.noChangesDirect' : 'changes.noChangesDescription';
 
 	// Clear changes content and show the empty state
 	container.innerHTML = `
         <div class="empty-state" id="no-changes">
             <h3 data-i18n="changes.noChangesTitle">${t('changes.noChangesTitle', 'No changes detected')}</h3>
-            <p data-i18n="changes.noChangesDescription">${t('changes.noChangesDescription', 'Claude hasn\'t made any changes yet. Changes will appear here automatically when Claude modifies files.')}</p>
+            <p data-i18n="${descriptionKey}">${isDirect
+				? t('changes.noChangesDirect', 'No changes detected in your working directory.')
+				: t('changes.noChangesDescription', 'Claude hasn\'t made any changes yet. Changes will appear here automatically when Claude modifies files.')}</p>
+            ${directNotice}
         </div>
     `;
 
@@ -1020,6 +1103,20 @@ function clearChangesTab() {
 	}
 
 	// Remove badge
+	updateChangesTabBadge(0);
+}
+
+function showChangeTrackingUnavailable(syncData) {
+	const container = document.getElementById('changes-container');
+	const path = escapeHtml((syncData && syncData.workspacePath) || workspacePath);
+
+	container.innerHTML = `
+        <div class="empty-state" id="no-changes">
+            <h3>${t('changes.changeTrackingUnavailable', 'Change tracking unavailable')}</h3>
+            <p>${tf('changes.changeTrackingUnavailableDescription', { path }, 'This directory is not a Git repository, or Git is not available. File edits still work in direct mode.')}</p>
+        </div>
+    `;
+
 	updateChangesTabBadge(0);
 }
 
@@ -1092,6 +1189,11 @@ function escapeHtml(text) {
 }
 
 function commitChanges(containerId) {
+	if (workspaceMode === 'direct') {
+		alert(t('changes.commitDisabledDirect', 'Commit and push are disabled in direct workspace mode.'));
+		return;
+	}
+
 	const commitMessage = document.getElementById('commit-message').value.trim();
 	if (!commitMessage) {
 		alert(I18n.t('changes.commitMessageRequired'));
@@ -1124,6 +1226,11 @@ function commitChanges(containerId) {
 }
 
 function pushChanges(containerId) {
+	if (workspaceMode === 'direct') {
+		alert(t('changes.commitDisabledDirect', 'Commit and push are disabled in direct workspace mode.'));
+		return;
+	}
+
 	const branchNameInput = document.getElementById('push-branch-name');
 	const branchName = branchNameInput?.value?.trim() || 'claude-changes';
 

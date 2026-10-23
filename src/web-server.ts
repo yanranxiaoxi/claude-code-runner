@@ -1,4 +1,5 @@
 import type Docker from 'dockerode';
+import type { WorkspaceMode } from './types';
 import { Buffer } from 'node:buffer';
 import { exec, execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -6,11 +7,13 @@ import path from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 import chalk from 'chalk';
+import chokidar from 'chokidar';
 import express from 'express';
 import * as fs from 'fs-extra';
 import { Server } from 'socket.io';
 import { getContainerRuntimeCmd } from './docker-config';
 import { ShadowRepository } from './git/shadow-repository';
+import { getCurrentBranch, getGitRemoteUrl, getWorkingTreeChanges, isGitInstalled, isGitRepository } from './git/workspace-status';
 
 const execAsync = promisify(exec);
 
@@ -33,6 +36,7 @@ export class WebUIServer {
 	private syncInProgress: Set<string> = new Set(); // Track containers currently syncing
 	private originalRepo: string = '';
 	private currentBranch: string = 'main';
+	private workspaceMode: WorkspaceMode = 'shadow';
 	private fileWatchers: Map<string, any> = new Map(); // container -> monitor (inotify stream or interval)
 	private containerCmd: string; // 'docker' or 'podman'
 	private wasNonGitInit: boolean = false;
@@ -80,8 +84,18 @@ export class WebUIServer {
 		this.app.get('/api/git/info', async (req, res) => {
 			try {
 				const containerId = req.query.containerId as string;
-				let currentBranch = 'loading...';
 				const workingDir = this.originalRepo || process.cwd();
+
+				if (this.workspaceMode === 'direct') {
+					const gitInfo = await this.getDirectGitInfo(workingDir, containerId);
+					res.json({
+						...gitInfo,
+						mode: 'direct',
+					});
+					return;
+				}
+
+				let currentBranch = 'loading...';
 
 				// If containerId is provided, try to get branch directly from container first
 				if (containerId) {
@@ -210,6 +224,9 @@ export class WebUIServer {
 					branchUrl,
 					repoUrl,
 					prs,
+					mode: 'shadow',
+					gitInstalled: true,
+					isGitRepo: true,
 				});
 			}
 			catch (error) {
@@ -217,6 +234,66 @@ export class WebUIServer {
 				res.status(500).json({ error: 'Failed to get git info' });
 			}
 		});
+	}
+
+	private async getDirectGitInfo(workingDir: string, containerId?: string): Promise<any> {
+		let isGitRepo = await isGitRepository(workingDir);
+		let currentBranch = isGitRepo ? await getCurrentBranch(workingDir) : null;
+		let gitInstalled = await isGitInstalled();
+		let repoUrl = isGitRepo ? ((await getGitRemoteUrl(workingDir)) || '') : '';
+
+		// Fall back to the container when the host has no git binary or the
+		// current directory is a subdirectory whose .git is not mounted.
+		if (containerId && (!isGitRepo || !currentBranch)) {
+			try {
+				const branchResult = await execAsync(
+					`${this.containerCmd} exec --user claude ${containerId} git -C /workspace rev-parse --abbrev-ref HEAD`,
+				);
+				currentBranch = branchResult.stdout.trim() || null;
+				isGitRepo = true;
+				gitInstalled = true;
+			}
+			catch {
+				// Keep the host result.
+			}
+		}
+
+		if (containerId && !repoUrl) {
+			try {
+				const remoteResult = await execAsync(
+					`${this.containerCmd} exec --user claude ${containerId} git -C /workspace remote get-url origin`,
+				);
+				repoUrl = remoteResult.stdout.trim();
+			}
+			catch {
+				// No remote configured.
+			}
+		}
+
+		if (repoUrl.startsWith('git@github.com:')) {
+			repoUrl = repoUrl
+				.replace('git@github.com:', 'https://github.com/')
+				.replace(/\.git$/, '');
+		}
+		else if (repoUrl.includes('github.com')) {
+			repoUrl = repoUrl.replace(/\.git$/, '');
+		}
+		else if (repoUrl.startsWith('https://')) {
+			repoUrl = repoUrl.replace(/\.git$/, '');
+		}
+
+		const branchUrl = repoUrl && currentBranch && currentBranch !== 'HEAD'
+			? `${repoUrl}/tree/${currentBranch}`
+			: '';
+
+		return {
+			currentBranch,
+			branchUrl,
+			repoUrl,
+			prs: [],
+			gitInstalled,
+			isGitRepo,
+		};
 	}
 
 	private setupSocketHandlers(): void {
@@ -228,6 +305,27 @@ export class WebUIServer {
 
 				try {
 					const container = this.docker.getContainer(containerId);
+
+					// Resolve workspace context from labels. This also makes browser
+					// tabs attaching to an existing container use the right mode.
+					try {
+						const info = await container.inspect();
+						const labels = info.Config.Labels || {};
+						const mode = labels['com.claude.runner.mode'];
+						if (mode === 'direct' || mode === 'shadow') {
+							this.workspaceMode = mode;
+						}
+						if (labels['com.claude.runner.workdir']) {
+							this.originalRepo = labels['com.claude.runner.workdir'];
+						}
+						this.wasNonGitInit = labels['com.claude.runner.non-git-init'] === 'true';
+						if (this.workspaceMode === 'direct') {
+							this.wasNonGitInit = false;
+						}
+					}
+					catch {
+						// Keep the context passed by the CLI.
+					}
 
 					// Check if we already have a session for this container
 					let session = this.sessions.get(containerId);
@@ -365,7 +463,12 @@ export class WebUIServer {
 					}
 
 					// Confirm attachment
-					socket.emit('attached', { containerId, wasNonGitInit: this.wasNonGitInit });
+					socket.emit('attached', {
+						containerId,
+						wasNonGitInit: this.wasNonGitInit,
+						workspaceMode: this.workspaceMode,
+						workspacePath: this.originalRepo || process.cwd(),
+					});
 
 					// Send initial resize after a small delay
 					if (session.exec && data.cols && data.rows) {
@@ -437,6 +540,13 @@ export class WebUIServer {
 			socket.on('commit-changes', async (data) => {
 				const { containerId, commitMessage } = data;
 
+				if (this.workspaceMode === 'direct') {
+					socket.emit('commit-error', {
+						message: 'Commit is not available in direct workspace mode.',
+					});
+					return;
+				}
+
 				try {
 					const shadowRepo = this.shadowRepos.get(containerId);
 					if (!shadowRepo) {
@@ -474,6 +584,13 @@ export class WebUIServer {
 			// Handle push operation
 			socket.on('push-changes', async (data) => {
 				const { containerId, branchName } = data;
+
+				if (this.workspaceMode === 'direct') {
+					socket.emit('push-error', {
+						message: 'Push is not available in direct workspace mode.',
+					});
+					return;
+				}
 
 				try {
 					const shadowRepo = this.shadowRepos.get(containerId);
@@ -543,6 +660,11 @@ export class WebUIServer {
 	}
 
 	private async performSync(containerId: string): Promise<void> {
+		if (this.workspaceMode === 'direct') {
+			await this.refreshDirectChanges(containerId);
+			return;
+		}
+
 		if (this.syncInProgress.has(containerId)) {
 			return; // Skip if sync already in progress
 		}
@@ -683,6 +805,9 @@ export class WebUIServer {
 				shadowPath,
 				diffData,
 				containerId,
+				mode: 'shadow',
+				canCommit: true,
+				changeTrackingAvailable: true,
 			};
 
 			// Send to all connected sockets for this container
@@ -713,9 +838,91 @@ export class WebUIServer {
 		}
 	}
 
+	private async refreshDirectChanges(containerId: string): Promise<void> {
+		if (this.syncInProgress.has(containerId)) {
+			return;
+		}
+
+		this.syncInProgress.add(containerId);
+
+		try {
+			const workDir = this.originalRepo || process.cwd();
+			const isRepo = await isGitRepository(workDir);
+
+			let payload: any;
+			if (!isRepo) {
+				payload = {
+					hasChanges: false,
+					summary: '',
+					diffData: null,
+					mode: 'direct',
+					canCommit: false,
+					changeTrackingAvailable: false,
+					workspacePath: workDir,
+					containerId,
+				};
+			}
+			else {
+				const changes = await getWorkingTreeChanges(workDir);
+				payload = {
+					...changes,
+					mode: 'direct',
+					canCommit: false,
+					changeTrackingAvailable: true,
+					workspacePath: workDir,
+					containerId,
+				};
+			}
+
+			const session = this.sessions.get(containerId);
+			if (session) {
+				for (const socketId of session.connectedSockets) {
+					const connectedSocket = this.io.sockets.sockets.get(socketId);
+					if (connectedSocket) {
+						connectedSocket.emit('sync-complete', payload);
+					}
+				}
+			}
+		}
+		catch (error: any) {
+			console.error(chalk.red('[MONITOR] Direct change refresh failed:'), error);
+			const session = this.sessions.get(containerId);
+			if (session) {
+				for (const socketId of session.connectedSockets) {
+					const connectedSocket = this.io.sockets.sockets.get(socketId);
+					if (connectedSocket) {
+						connectedSocket.emit('sync-error', { message: error.message });
+					}
+				}
+			}
+		}
+		finally {
+			this.syncInProgress.delete(containerId);
+		}
+	}
+
 	private async startContinuousMonitoring(containerId: string): Promise<void> {
 		// Clear existing monitoring if any
 		this.stopContinuousMonitoring(containerId);
+
+		if (this.workspaceMode === 'direct') {
+			console.log(
+				chalk.blue(
+					`[MONITOR] Starting host file monitoring for direct workspace ${containerId.substring(0, 12)}`,
+				),
+			);
+
+			await this.refreshDirectChanges(containerId);
+
+			const workDir = this.originalRepo || process.cwd();
+			if (await isGitRepository(workDir)) {
+				this.startDirectFileWatch(containerId);
+			}
+			else {
+				console.log(chalk.gray('[MONITOR] Change tracking disabled: not a Git repository.'));
+			}
+			return;
+		}
 
 		console.log(
 			chalk.blue(
@@ -864,6 +1071,46 @@ export class WebUIServer {
 		this.fileWatchers.set(containerId, { stream, exec: inotifyExec } as any);
 	}
 
+	private startDirectFileWatch(containerId: string): void {
+		const workDir = this.originalRepo || process.cwd();
+		const ignored = /(?:^|[\\/])(?:\.git|node_modules|\.next|__pycache__|\.venv|\.DS_Store)(?:[\\/]|$)/;
+
+		try {
+			const watcher = chokidar.watch(workDir, {
+				persistent: true,
+				ignoreInitial: true,
+				ignored: (filePath: string) => ignored.test(filePath),
+			});
+
+			let timeout: NodeJS.Timeout | null = null;
+			const scheduleRefresh = () => {
+				if (timeout) {
+					clearTimeout(timeout);
+				}
+				timeout = setTimeout(() => {
+					void this.refreshDirectChanges(containerId);
+				}, 500);
+			};
+
+			watcher.on('add', scheduleRefresh);
+			watcher.on('change', scheduleRefresh);
+			watcher.on('unlink', scheduleRefresh);
+			watcher.on('addDir', scheduleRefresh);
+			watcher.on('unlinkDir', scheduleRefresh);
+			watcher.on('error', (error: Error) => {
+				console.error(chalk.yellow('[MONITOR] Host file watcher error:'), error);
+				this.stopContinuousMonitoring(containerId);
+				this.startPollingMonitoring(containerId);
+			});
+
+			this.fileWatchers.set(containerId, { watcher });
+		}
+		catch (error) {
+			console.error(chalk.yellow('[MONITOR] Could not start host file watcher:'), error);
+			this.startPollingMonitoring(containerId);
+		}
+	}
+
 	private startPollingMonitoring(containerId: string): void {
 		console.log(
 			chalk.yellow(
@@ -872,7 +1119,7 @@ export class WebUIServer {
 		);
 
 		const interval = setInterval(async () => {
-			console.log(chalk.gray('[POLL] Syncing files from container...'));
+			console.log(chalk.gray(this.workspaceMode === 'direct' ? '[POLL] Refreshing host changes...' : '[POLL] Syncing files from container...'));
 			try {
 				await this.performSync(containerId);
 			}
@@ -887,8 +1134,11 @@ export class WebUIServer {
 	private stopContinuousMonitoring(containerId: string): void {
 		const monitor = this.fileWatchers.get(containerId);
 		if (monitor) {
+			if (monitor.watcher) {
+				void monitor.watcher.close();
+			}
 			// If it's an inotify monitor, close the stream
-			if (monitor.stream) {
+			else if (monitor.stream) {
 				monitor.stream.destroy();
 			}
 			else {
@@ -961,9 +1211,10 @@ export class WebUIServer {
 		});
 	}
 
-	setRepoInfo(originalRepo: string, branch: string): void {
+	setRepoInfo(originalRepo: string, branch: string, mode: WorkspaceMode = 'shadow'): void {
 		this.originalRepo = originalRepo;
 		this.currentBranch = branch;
+		this.workspaceMode = mode;
 	}
 
 	setNonGitInit(wasInit: boolean): void {
@@ -971,6 +1222,11 @@ export class WebUIServer {
 	}
 
 	async stop(): Promise<void> {
+		// Stop host/inotify/polling monitors
+		for (const containerId of Array.from(this.fileWatchers.keys())) {
+			this.stopContinuousMonitoring(containerId);
+		}
+
 		// Clean up shadow repos
 		for (const [, shadowRepo] of this.shadowRepos) {
 			await shadowRepo.cleanup();

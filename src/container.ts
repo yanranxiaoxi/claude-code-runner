@@ -1,5 +1,5 @@
 import type Docker from 'dockerode';
-import type { CodeRunner, Credentials, SandboxConfig } from './types';
+import type { CodeRunner, Credentials, SandboxConfig, WorkspaceMode } from './types';
 import { Buffer } from 'node:buffer';
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
@@ -9,6 +9,7 @@ import process from 'node:process';
 import chalk from 'chalk';
 import tarStream from 'tar-stream';
 import { CODE_RUNNERS } from './types';
+import { getHostIdentity } from './workspace';
 
 /** Normalize path separators for shell commands (Windows backslash → forward slash) */
 function toShellPath(filePath: string): string {
@@ -25,7 +26,11 @@ export class ContainerManager {
 	private config: SandboxConfig;
 	private containers: Map<string, Docker.Container> = new Map();
 
-	constructor(docker: Docker, config: SandboxConfig) {
+	constructor(
+		docker: Docker,
+		config: SandboxConfig,
+		private isPodmanRuntime: boolean = false,
+	) {
 		this.docker = docker;
 		this.config = config;
 	}
@@ -54,11 +59,19 @@ export class ContainerManager {
 			throw new Error('Container exited immediately after start');
 		}
 
-		// Copy working directory into container
-		console.log(chalk.blue('• Copying files into container...'));
+		const workspaceMode: WorkspaceMode = containerConfig.workspaceMode || this.config.workspaceMode || 'shadow';
+
 		try {
-			await this._copyWorkingDirectory(container, containerConfig.workDir);
-			console.log(chalk.green('✓ Files copied'));
+			if (workspaceMode === 'direct') {
+				// The workspace is bind-mounted; copying files would overwrite host files.
+				console.log(chalk.blue('• Using direct workspace mount (no file copy)'));
+			}
+			else {
+				// Copy working directory into container
+				console.log(chalk.blue('• Copying files into container...'));
+				await this._copyWorkingDirectory(container, containerConfig.workDir);
+				console.log(chalk.green('✓ Files copied'));
+			}
 
 			// Copy Claude configuration if it exists
 			await this._copyClaudeConfig(container);
@@ -77,9 +90,15 @@ export class ContainerManager {
 
 			// Copy git configuration if it exists
 			await this._copyGitConfig(container);
+
+			// In direct mode, verify the mounted host directory is writable by the
+			// container user before running setup commands or starting the agent.
+			if (workspaceMode === 'direct') {
+				await this.verifyDirectWorkspaceWritable(container, containerConfig.workDir);
+			}
 		}
 		catch (error) {
-			console.error(chalk.red('✗ File copy failed:'), error);
+			console.error(chalk.red('✗ Container preparation failed:'), error);
 			// Clean up container on failure
 			await container.stop().catch(() => {});
 			await container.remove().catch(() => {});
@@ -97,12 +116,62 @@ export class ContainerManager {
 			containerConfig.branchName,
 			containerConfig.prFetchRef,
 			containerConfig.remoteFetchRef,
+			workspaceMode,
 		);
 
 		// Run setup commands
 		await this.runSetupCommands(container);
 
 		return container.id;
+	}
+
+	private async verifyDirectWorkspaceWritable(container: Docker.Container, workDir: string): Promise<void> {
+		const probeName = `.claude-runner-write-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		const probePath = path.join(workDir, probeName);
+
+		try {
+			const exec = await container.exec({
+				Cmd: ['/bin/bash', '-c', `tmp="/workspace/${probeName}"; touch "$tmp" && rm -f "$tmp"`],
+				AttachStdout: true,
+				AttachStderr: true,
+				User: 'claude',
+				WorkingDir: '/workspace',
+			});
+
+			const stream = await exec.start({});
+			await new Promise<void>((resolve, reject) => {
+				stream.on('data', () => {});
+				stream.on('end', resolve);
+				stream.on('error', reject);
+			});
+
+			let info = await exec.inspect();
+			for (let attempt = 0; attempt < 10 && info.ExitCode === null; attempt++) {
+				await new Promise(resolve => setTimeout(resolve, 50));
+				info = await exec.inspect();
+			}
+			if (info.ExitCode !== 0) {
+				throw new Error(`write probe exited with code ${info.ExitCode}`);
+			}
+
+			console.log(chalk.green('✓ Direct workspace is writable by the container user'));
+		}
+		catch (error) {
+			// Best-effort cleanup of the probe file from the host side.
+			try {
+				fs.unlinkSync(probePath);
+			}
+			catch {
+				// Ignore cleanup errors.
+			}
+
+			throw new Error(
+				`The container cannot write to the mounted workspace: ${workDir}\n`
+				+ 'This usually means a UID/GID mismatch, a rootless container namespace issue, or SELinux blocking the bind mount.\n'
+				+ 'Direct mode was aborted before starting the agent; no workspace files were modified.\n'
+				+ `Original error: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
 	}
 
 	private async ensureImage(): Promise<void> {
@@ -305,13 +374,33 @@ export class ContainerManager {
 	private async createContainer(
 		containerConfig: any,
 	): Promise<Docker.Container> {
-		const { credentials, workDir, repoName } = containerConfig;
+		const { credentials, workDir, repoName, workspaceMode, nonGitInit } = containerConfig;
+		const mode: WorkspaceMode = workspaceMode || this.config.workspaceMode || 'shadow';
 
 		// Prepare environment variables
-		const env = this.prepareEnvironment(credentials);
+		const env = this.prepareEnvironment(credentials, mode);
 
 		// Prepare volumes
-		const volumes = this.prepareVolumes(workDir, credentials);
+		const volumes = this.prepareVolumes(workDir, credentials, mode);
+
+		const hostConfig: any = {
+			Binds: volumes.binds,
+			Mounts: volumes.mounts,
+			AutoRemove: false,
+			NetworkMode: 'bridge',
+		};
+
+		// Rootless Podman maps the container user to a subuid by default.
+		// keep-id keeps the host user available as UID 1000 inside the container,
+		// so the claude user can write to the bind-mounted workspace.
+		if (mode === 'direct' && this.isPodmanRuntime) {
+			const { uid, gid } = getHostIdentity();
+			if (uid !== undefined) {
+				hostConfig.UsernsMode = uid === 1000 && (gid === undefined || gid === 1000)
+					? 'keep-id'
+					: 'keep-id:uid=1000,gid=1000';
+			}
+		}
 
 		// Create container
 		const container = await this.docker.createContainer({
@@ -323,14 +412,16 @@ export class ContainerManager {
 			Labels: {
 				'com.claude.runner.repo': repoName,
 				'com.claude.runner.workdir': workDir,
+				'com.claude.runner.mode': mode,
+				'com.claude.runner.non-git-init': nonGitInit ? 'true' : 'false',
 				'com.claude.runner.version': '__PACKAGE_VERSION__',
 			},
-			HostConfig: {
-				Binds: volumes,
-				AutoRemove: false,
-				NetworkMode: 'bridge',
-			},
+			HostConfig: hostConfig,
 			WorkingDir: '/workspace',
+			// Keep the entrypoint as root so it can prepare credentials. Sessions
+			// still run as claude. Explicit User also avoids Podman keep-id
+			// overriding the entrypoint user.
+			User: mode === 'direct' ? 'root' : undefined,
 			Cmd: ['/bin/bash', '-l'],
 			AttachStdin: true,
 			AttachStdout: true,
@@ -343,8 +434,23 @@ export class ContainerManager {
 		return container;
 	}
 
-	private prepareEnvironment(credentials: Credentials): string[] {
+	private prepareEnvironment(credentials: Credentials, workspaceMode: WorkspaceMode): string[] {
 		const env = [];
+
+		if (workspaceMode === 'direct') {
+			// Protect the host repository from optional index writes and make the
+			// direct-mode Git restrictions available to the image's git wrapper.
+			env.push('CLAUDE_RUNNER_DIRECT_MODE=1');
+			env.push('GIT_OPTIONAL_LOCKS=0');
+
+			// Rootful Docker cannot map the host user automatically. The image
+			// entrypoint aligns the claude user with these values when present.
+			const { uid, gid } = getHostIdentity();
+			if (!this.isPodmanRuntime && process.platform === 'linux' && uid !== undefined && gid !== undefined) {
+				env.push(`HOST_UID=${uid}`);
+				env.push(`HOST_GID=${gid}`);
+			}
+		}
 
 		// Load environment variables from .env file if specified
 		if (this.config.envFile) {
@@ -510,18 +616,46 @@ export class ContainerManager {
 	}
 
 	private prepareVolumes(
-		_workDir: string,
+		workDir: string,
 		_credentials: Credentials,
-	): string[] {
-		// NO MOUNTING workspace - we'll copy files instead
-		const volumes: string[] = [];
+		workspaceMode: WorkspaceMode,
+	): { binds: string[]; mounts: any[] } {
+		const binds: string[] = [];
+		const mounts: any[] = [];
+
+		if (workspaceMode === 'direct') {
+			// Mount the workspace directly. Use the Mounts API to support Windows
+			// drive-letter paths without ambiguity in Binds strings.
+			mounts.push({
+				Type: 'bind',
+				Source: workDir,
+				Target: '/workspace',
+				ReadOnly: false,
+			});
+
+			// Keep Git metadata read-only. This prevents the agent from adding
+			// hooks, changing config, rewriting refs, or committing through Git.
+			const gitPath = path.join(workDir, '.git');
+			if (fs.existsSync(gitPath)) {
+				const gitSource = fs.realpathSync(gitPath);
+				mounts.push({
+					Type: 'bind',
+					Source: gitSource,
+					Target: '/workspace/.git',
+					ReadOnly: true,
+				});
+				console.log(chalk.blue('✓ Git metadata mounted read-only (direct mode)'));
+			}
+
+			console.log(chalk.blue(`✓ Mounting ${workDir} → /workspace (read-write)`));
+		}
 
 		// Mount SSH directory if it exists and not disabled (read-only for security)
 		const forwardSshKeys = this.config.forwardSshKeys !== false; // Default: true
 		const sshDir = path.join(os.homedir(), '.ssh');
 		if (forwardSshKeys && fs.existsSync(sshDir)) {
 			// Mount to /tmp/.host-ssh first, then we'll copy with correct permissions in container
-			volumes.push(`${sshDir}:/tmp/.host-ssh:ro`);
+			binds.push(`${sshDir}:/tmp/.host-ssh:ro`);
 			console.log(chalk.blue('✓ SSH keys will be available in container'));
 		}
 
@@ -530,7 +664,7 @@ export class ContainerManager {
 		const gnupgDir = path.join(os.homedir(), '.gnupg');
 		if (forwardGpgKeys && fs.existsSync(gnupgDir)) {
 			// Mount to /tmp/.host-gnupg first, then we'll copy with correct permissions in container
-			volumes.push(`${gnupgDir}:/tmp/.host-gnupg:ro`);
+			binds.push(`${gnupgDir}:/tmp/.host-gnupg:ro`);
 			console.log(chalk.blue('✓ GPG keys will be available in container'));
 		}
 
@@ -538,7 +672,7 @@ export class ContainerManager {
 		const forwardSshAgent = this.config.forwardSshAgent !== false; // Default: true
 		const sshAuthSock = process.env.SSH_AUTH_SOCK;
 		if (forwardSshAgent && sshAuthSock && fs.existsSync(sshAuthSock)) {
-			volumes.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:rw`);
+			binds.push(`${sshAuthSock}:/tmp/.ssh-agent-sock:rw`);
 			console.log(chalk.blue('✓ SSH agent forwarding enabled'));
 		}
 
@@ -548,7 +682,7 @@ export class ContainerManager {
 			// GPG agent socket is typically at ~/.gnupg/S.gpg-agent
 			const gpgAgentSocket = path.join(os.homedir(), '.gnupg', 'S.gpg-agent');
 			if (fs.existsSync(gpgAgentSocket)) {
-				volumes.push(`${gpgAgentSocket}:/tmp/.gpg-agent-sock:rw`);
+				binds.push(`${gpgAgentSocket}:/tmp/.gpg-agent-sock:rw`);
 				console.log(chalk.blue('✓ GPG agent forwarding enabled'));
 			}
 			else {
@@ -558,7 +692,14 @@ export class ContainerManager {
 
 		// Add custom volumes (legacy format)
 		if (this.config.volumes) {
-			volumes.push(...this.config.volumes);
+			for (const volume of this.config.volumes) {
+				if (workspaceMode === 'direct' && this.volumeTargetsProtectedWorkspace(volume)) {
+					throw new Error(
+						`Custom volume "${volume}" targets /workspace or /workspace/.git, which is not allowed in direct workspace mode.`,
+					);
+				}
+				binds.push(volume);
+			}
 		}
 
 		// Add mount configurations (new format)
@@ -601,17 +742,24 @@ export class ContainerManager {
 						},
 					);
 
-					// Ensure target path is absolute
-					const targetPath = path.isAbsolute(expandedTarget)
+					// Ensure the container target path is absolute. Always use POSIX
+					// separators here, even when running on Windows.
+					const targetPath = path.posix.isAbsolute(expandedTarget)
 						? expandedTarget
-						: path.join('/workspace', expandedTarget);
+						: path.posix.join('/workspace', expandedTarget);
 
-					// Create mount string
-					const mountString = mount.readonly
-						? `${sourcePath}:${targetPath}:ro`
-						: `${sourcePath}:${targetPath}`;
+					if (workspaceMode === 'direct' && this.targetsProtectedWorkspace(targetPath)) {
+						throw new Error(
+							`Mount target "${targetPath}" targets /workspace or /workspace/.git, which is not allowed in direct workspace mode.`,
+						);
+					}
 
-					volumes.push(mountString);
+					mounts.push({
+						Type: 'bind',
+						Source: sourcePath,
+						Target: targetPath,
+						ReadOnly: mount.readonly === true,
+					});
 					console.log(
 						chalk.blue(
 							`✓ Mounting ${mount.source} → ${targetPath}${mount.readonly ? ' (read-only)' : ''}`,
@@ -619,6 +767,9 @@ export class ContainerManager {
 					);
 				}
 				catch (error) {
+					if (error instanceof Error && error.message.includes('not allowed in direct workspace mode')) {
+						throw error;
+					}
 					console.error(
 						chalk.yellow(`⚠ Failed to process mount ${mount.source}:`),
 						error,
@@ -627,7 +778,19 @@ export class ContainerManager {
 			}
 		}
 
-		return volumes;
+		return { binds, mounts };
+	}
+
+	private targetsProtectedWorkspace(target: string): boolean {
+		const normalized = path.posix.normalize(target.replace(/\\/g, '/')).replace(/\/+$/, '');
+		return normalized === '/workspace'
+			|| normalized === '/workspace/.git'
+			|| normalized.startsWith('/workspace/.git/');
+	}
+
+	private volumeTargetsProtectedWorkspace(volume: string): boolean {
+		const normalized = volume.replace(/\\/g, '/');
+		return /:\/workspace(?:\/\.git(?:\/.*)?)?\/?(?::|$)/.test(normalized);
 	}
 
 	private async _copyWorkingDirectory(
@@ -1302,10 +1465,11 @@ export class ContainerManager {
 	private async setupGitAndStartupScript(
 		container: any,
 		branchName: string,
-		prFetchRef?: string,
-		remoteFetchRef?: string,
+		prFetchRef: string | undefined,
+		remoteFetchRef: string | undefined,
+		workspaceMode: WorkspaceMode,
 	): Promise<void> {
-		console.log(chalk.blue('• Setting up git branch and startup script...'));
+		console.log(chalk.blue('• Setting up workspace and startup script...'));
 
 		// Determine what to show in the web UI
 		const defaultShell = this.config.defaultShell || 'claude';
@@ -1317,107 +1481,114 @@ export class ContainerManager {
 		// Generate startup script based on the code runner
 		const startupScript = this.generateStartupScript(defaultShell, runnerConfig);
 
-		const setupExec = await container.exec({
-			Cmd: [
-				'/bin/bash',
-				'-c',
-				`
-        cd /workspace &&
-        sudo chown -R claude:claude /workspace &&
-        git config --global --add safe.directory /workspace &&
-        # Clean up macOS resource fork files in git pack directory
-        find .git/objects/pack -name "._pack-*.idx" -type f -delete 2>/dev/null || true &&
-        # Configure git commit signing
-        # Disable GPG signing by default to avoid passphrase prompts in non-interactive environments
-        # Even if host .gitconfig has commit.gpgsign=true, override it unless explicitly enabled
-        ENABLE_GPG_SIGNING="${this.config.enableGpgSigning === true ? 'true' : 'false'}" &&
-        if [ "$ENABLE_GPG_SIGNING" = "true" ]; then
-          git config --global commit.gpgsign true
-          echo "✓ GPG signing enabled"
-        else
-          git config --global commit.gpgsign false
-          echo "✓ GPG signing disabled (enable with enableGpgSigning: true in config)"
-        fi &&
-        # Start SSH agent if not already running and we have keys
-        if [ -d "/home/claude/.ssh" ] && [ -z "$SSH_AUTH_SOCK" ]; then
-          eval "$(ssh-agent -s)" > /dev/null 2>&1 || true
-          # Add keys without passphrase (passphrase-protected keys need agent forwarding)
-          for key in /home/claude/.ssh/id_* ; do
-            if [ -f "$key" ] && [[ "$key" != *.pub ]]; then
-              ssh-add "$key" 2>/dev/null || true
-            fi
-          done
-          echo "✓ SSH agent started"
-        fi &&
-        # Configure git to use GitHub token if available (for HTTPS)
-        if [ -n "$GITHUB_TOKEN" ]; then
-          git config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          git config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
-          echo "✓ Configured git to use GitHub token"
-        fi &&
-        # Handle different branch setup scenarios
-        if [ -n "${prFetchRef || ''}" ]; then
-          echo "• Fetching PR branch..." &&
-          git fetch origin ${prFetchRef} &&
-		  git checkout -B "${branchName}" FETCH_HEAD &&
-		  echo "✓ Checked out PR branch: ${branchName}"
-        elif [ -n "${remoteFetchRef || ''}" ]; then
-          echo "• Fetching remote branch..." &&
-          git fetch origin &&
-		  git checkout -B "${branchName}" "${remoteFetchRef}" &&
-		  echo "✓ Checked out remote branch: ${branchName}"
-        else
-          # Regular branch creation
-		  git checkout -B "${branchName}" &&
-		  echo "✓ Checked out branch: ${branchName}"
-        fi &&
-        cat > /home/claude/start-session.sh << 'EOF'
+		const commands: string[] = [
+			'set -e',
+			'cd /workspace',
+			'GIT_BIN=/usr/bin/git.real',
+			'[ -x "$GIT_BIN" ] || GIT_BIN=git',
+		];
+
+		if (workspaceMode === 'shadow') {
+			commands.push('sudo chown -R claude:claude /workspace');
+			// Clean up macOS resource fork files in git pack directory
+			commands.push('find .git/objects/pack -name "._pack-*.idx" -type f -delete 2>/dev/null || true');
+		}
+
+		// Use git.real for trusted setup writes. In direct mode the git wrapper
+		// deliberately rejects mutating commands.
+		commands.push('"$GIT_BIN" config --global --add safe.directory /workspace');
+
+		commands.push(
+			`ENABLE_GPG_SIGNING="${this.config.enableGpgSigning === true ? 'true' : 'false'}"`,
+			`if [ "$ENABLE_GPG_SIGNING" = "true" ]; then
+  "$GIT_BIN" config --global commit.gpgsign true
+  echo "✓ GPG signing enabled"
+else
+  "$GIT_BIN" config --global commit.gpgsign false
+  echo "✓ GPG signing disabled (enable with enableGpgSigning: true in config)"
+fi`,
+			`if [ -d "/home/claude/.ssh" ] && [ -z "$SSH_AUTH_SOCK" ]; then
+  eval "$(ssh-agent -s)" > /dev/null 2>&1 || true
+  for key in /home/claude/.ssh/id_* ; do
+    if [ -f "$key" ] && [[ "$key" != *.pub ]]; then
+      ssh-add "$key" 2>/dev/null || true
+    fi
+  done
+  echo "✓ SSH agent started"
+fi`,
+			`if [ -n "$GITHUB_TOKEN" ]; then
+  "$GIT_BIN" config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+  "$GIT_BIN" config --global url."https://\${GITHUB_TOKEN}@github.com/".insteadOf "git@github.com:"
+  echo "✓ Configured git to use GitHub token"
+fi`,
+		);
+
+		if (workspaceMode === 'shadow') {
+			commands.push(
+				`if [ -n "${prFetchRef || ''}" ]; then
+  echo "• Fetching PR branch..."
+  git fetch origin ${prFetchRef}
+  git checkout -B "${branchName}" FETCH_HEAD
+  echo "✓ Checked out PR branch: ${branchName}"
+elif [ -n "${remoteFetchRef || ''}" ]; then
+  echo "• Fetching remote branch..."
+  git fetch origin
+  git checkout -B "${branchName}" "${remoteFetchRef}"
+  echo "✓ Checked out remote branch: ${branchName}"
+else
+  git checkout -B "${branchName}"
+  echo "✓ Checked out branch: ${branchName}"
+fi`,
+			);
+		}
+
+		commands.push(
+			`cat > /home/claude/start-session.sh << 'EOF'
 ${startupScript}
-EOF
-        chmod +x /home/claude/start-session.sh &&
-        echo "✓ Startup script created"
-      `,
-			],
+EOF`,
+			'chmod +x /home/claude/start-session.sh',
+			'echo "✓ Workspace setup complete"',
+		);
+
+		const setupExec = await container.exec({
+			Cmd: ['/bin/bash', '-c', commands.join('\n')],
 			AttachStdout: true,
 			AttachStderr: true,
+			User: workspaceMode === 'direct' ? 'claude' : undefined,
 		});
 
 		const setupStream = await setupExec.start({});
 
-		// Wait for setup to complete
+		// Wait for the setup process to finish, then rely on its exit code instead
+		// of fragile output matching. This also works for direct mode where no
+		// branch message is printed.
 		await new Promise<void>((resolve, reject) => {
-			let output = '';
 			setupStream.on('data', (chunk: any) => {
-				output += chunk.toString();
 				process.stdout.write(chunk);
 			});
-			setupStream.on('end', () => {
-				if (
-					(output.includes('✓ Created new branch')
-						|| output.includes('✓ Switched to existing branch')
-						|| output.includes('✓ Switched to existing remote branch')
-						|| output.includes('✓ Switched to existing PR branch')
-						|| output.includes('✓ Checked out PR branch')
-						|| output.includes('✓ Checked out remote branch')
-						|| output.includes('✓ Checked out branch')
-						|| output.includes('✓ Created local branch from remote'))
-					&& output.includes('✓ Startup script created')
-				) {
-					resolve();
-				}
-				else {
-					reject(new Error('Setup failed'));
-				}
-			});
+			setupStream.on('end', resolve);
 			setupStream.on('error', reject);
 		});
 
-		console.log(chalk.green('✓ Git and startup script setup completed'));
+		let setupInfo = await setupExec.inspect();
+		for (let attempt = 0; attempt < 10 && setupInfo.ExitCode === null; attempt++) {
+			await new Promise(resolve => setTimeout(resolve, 50));
+			setupInfo = await setupExec.inspect();
+		}
+
+		if (setupInfo.ExitCode !== 0) {
+			throw new Error(`Workspace setup failed with exit code ${setupInfo.ExitCode}`);
+		}
+
+		console.log(chalk.green('✓ Workspace setup completed'));
 	}
 
 	private async runSetupCommands(container: any): Promise<void> {
 		// Execute custom setup commands if provided
 		if (this.config.setupCommands && this.config.setupCommands.length > 0) {
+			if (this.config.workspaceMode === 'direct') {
+				console.log(chalk.yellow('⚠ Running approved setup commands in the mounted host directory...'));
+			}
 			console.log(chalk.blue('• Running custom setup commands...'));
 			console.log(
 				chalk.blue(

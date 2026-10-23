@@ -52,23 +52,109 @@ RUN useradd -m -s /bin/bash claude \
     && usermod -aG wheel claude \
     && mkdir -p /workspace \
     && chown -R claude:claude /workspace \
-    # Git wrapper script to prevent branch switching
+    # Git wrapper script:
+    # - shadow mode: prevent branch switching after initial setup
+    # - direct mode: allow only read-only Git inspection
     && printf '%s\n' '#!/bin/bash' \
-        '# Allow the initial branch creation' \
+        '' \
+        '# Find the git subcommand, skipping global options that take a value.' \
+        'args=("$@")' \
+        'cmd=""' \
+        'i=0' \
+        'while [ $i -lt ${#args[@]} ]; do' \
+        '    a="${args[$i]}"' \
+        '    case "$a" in' \
+        '        -C|--git-dir|--work-tree|--namespace|-c)' \
+        '            i=$((i+2))' \
+        '            ;;' \
+        '        -*)' \
+        '            i=$((i+1))' \
+        '            ;;' \
+        '        *)' \
+        '            cmd="$a"' \
+        '            break' \
+        '            ;;' \
+        '    esac' \
+        'done' \
+        '' \
+        'if [ "$CLAUDE_RUNNER_DIRECT_MODE" = "1" ]; then' \
+        '    if [ "$1" = "--version" ] || [ "$1" = "version" ]; then' \
+        '        exec /usr/bin/git.real "$@"' \
+        '    fi' \
+        '' \
+        '    allow=0' \
+        '    case "$cmd" in' \
+        '        status|diff|log|show|rev-parse|ls-files|ls-tree|ls-remote|blame|describe|grep|cat-file|whatchanged|shortlog|reflog|fsck|count-objects|check-ignore|check-attr|merge-base|rev-list|diff-tree|diff-files|show-ref|for-each-ref|name-rev|var)' \
+        '            allow=1' \
+        '            ;;' \
+        '        config)' \
+        '            for a in "$@"; do' \
+        '                case "$a" in' \
+        '                    --get|--get-all|--get-regexp|--list|-l|--show-origin|--show-scope)' \
+        '                        allow=1' \
+        '                        ;;' \
+        '                esac' \
+        '            done' \
+        '            ;;' \
+        '        remote)' \
+        '            next="${args[$((i+1))]}"' \
+        '            case "$next" in' \
+        '                ""|-v|--verbose|get-url|show) allow=1 ;;' \
+        '            esac' \
+        '            ;;' \
+        '        branch)' \
+        '            next="${args[$((i+1))]}"' \
+        '            case "$next" in' \
+        '                ""|-a|-r|-v|-vv|--list|--show-current|--contains|--merged|--no-merged|--points-at|--format=*) allow=1 ;;' \
+        '            esac' \
+        '            ;;' \
+        '        tag)' \
+        '            next="${args[$((i+1))]}"' \
+        '            case "$next" in' \
+        '                ""|-l|--list|-n*|--contains|--points-at|--merged|--no-merged) allow=1 ;;' \
+        '            esac' \
+        '            ;;' \
+        '        stash)' \
+        '            next="${args[$((i+1))]}"' \
+        '            case "$next" in' \
+        '                list|show) allow=1 ;;' \
+        '            esac' \
+        '            ;;' \
+        '        worktree)' \
+        '            next="${args[$((i+1))]}"' \
+        '            [ "$next" = "list" ] && allow=1' \
+        '            ;;' \
+        '        submodule)' \
+        '            next="${args[$((i+1))]}"' \
+        '            case "$next" in' \
+        '                status|summary) allow=1 ;;' \
+        '            esac' \
+        '            ;;' \
+        '    esac' \
+        '' \
+        '    if [ "$allow" != "1" ]; then' \
+        '        echo "Error: Git command ${cmd:-<unknown>} is disabled in direct workspace mode." >&2' \
+        '        echo "Direct mode only allows read-only Git inspection. Use shadow mode for Git workflows." >&2' \
+        '        exit 1' \
+        '    fi' \
+        '' \
+        '    exec /usr/bin/git.real "$@"' \
+        'fi' \
+        '' \
+        '# Shadow mode: allow the initial branch creation, then prevent switching.' \
         'if [ ! -f /tmp/.branch-created ]; then' \
         '    /usr/bin/git.real "$@"' \
-        '    if [[ "$1" == "checkout" ]] && [[ "$2" == "-b" ]]; then' \
+        '    if [[ "$1" == "checkout" ]] && [[ "$2" == "-b" || "$2" == "-B" ]]; then' \
         '        touch /tmp/.branch-created' \
         '    fi' \
         'else' \
-        '    # After initial branch creation, prevent switching' \
-        '    if [[ "$1" == "checkout" ]] && [[ "$2" != "-b" ]] && [[ "$*" != *"--"* ]]; then' \
-        '        echo "Error: Branch switching is disabled in claude-code-runner"' \
-        '        echo "You can only create new branches with git checkout -b"' \
+        '    if [[ "$1" == "checkout" ]] && [[ "$2" != "-b" ]] && [[ "$2" != "-B" ]] && [[ "$*" != *"--"* ]]; then' \
+        '        echo "Error: Branch switching is disabled in claude-code-runner" >&2' \
+        '        echo "You can only create new branches with git checkout -b" >&2' \
         '        exit 1' \
         '    fi' \
         '    if [[ "$1" == "switch" ]]; then' \
-        '        echo "Error: Branch switching is disabled in claude-code-runner"' \
+        '        echo "Error: Branch switching is disabled in claude-code-runner" >&2' \
         '        exit 1' \
         '    fi' \
         '    /usr/bin/git.real "$@"' \
@@ -106,12 +192,22 @@ USER root
 RUN printf '%s\n' '#!/bin/bash' \
     'set -e' \
     '' \
+    '# Align the claude user with the host UID/GID for direct workspace mode.' \
+    '# Never chown /workspace here: it may be the actual project directory of the user.' \
+    'if [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then' \
+    '    if [ "$(id -u claude)" != "$HOST_UID" ] || [ "$(id -g claude)" != "$HOST_GID" ]; then' \
+    '        groupmod -o -g "$HOST_GID" claude 2>/dev/null || true' \
+    '        usermod -o -u "$HOST_UID" claude 2>/dev/null || true' \
+    '        chown -R claude:claude /home/claude 2>/dev/null || true' \
+    '    fi' \
+    'fi' \
+    '' \
     '# Copy SSH keys from host if mounted' \
     'if [ -d "/tmp/.host-ssh" ]; then' \
     '    # Copy to claude user SSH directory' \
     '    cp -r /tmp/.host-ssh/* /home/claude/.ssh/ 2>/dev/null || true' \
     '    # Fix ownership and permissions' \
-    '    chown -R claude:claude /home/claude/.ssh' \
+    '    chown -R claude:claude /home/claude/.ssh 2>/dev/null || true' \
     '    chmod 700 /home/claude/.ssh' \
     '    chmod 600 /home/claude/.ssh/* 2>/dev/null || true' \
     '    # Keep config readable' \
@@ -128,7 +224,7 @@ RUN printf '%s\n' '#!/bin/bash' \
     '    # Copy to claude user GPG directory' \
     '    cp -r /tmp/.host-gnupg/* /home/claude/.gnupg/ 2>/dev/null || true' \
     '    # Fix ownership and permissions' \
-    '    chown -R claude:claude /home/claude/.gnupg' \
+    '    chown -R claude:claude /home/claude/.gnupg 2>/dev/null || true' \
     '    chmod 700 /home/claude/.gnupg' \
     '    chmod 600 /home/claude/.gnupg/* 2>/dev/null || true' \
     '    # Some GPG files need specific permissions' \
@@ -175,7 +271,7 @@ RUN printf '%s\n' '#!/bin/bash' \
     '    ' \
     '    # Update .gnupg directory if it exists' \
     '    mkdir -p /home/claude/.gnupg' \
-    '    chown claude:claude /home/claude/.gnupg' \
+    '    chown claude:claude /home/claude/.gnupg 2>/dev/null || true' \
     '    chmod 700 /home/claude/.gnupg' \
     '    ' \
     '    # Create symlink from GPG agent socket to the relay socket' \
@@ -192,7 +288,7 @@ RUN printf '%s\n' '#!/bin/bash' \
     '# Copy git config if mounted' \
     'if [ -f "/tmp/.gitconfig" ]; then' \
     '    cp /tmp/.gitconfig /home/claude/.gitconfig' \
-    '    chown claude:claude /home/claude/.gitconfig' \
+    '    chown claude:claude /home/claude/.gitconfig 2>/dev/null || true' \
     '    echo "✓ Git config copied"' \
     'fi' \
     '' \
@@ -202,7 +298,7 @@ RUN printf '%s\n' '#!/bin/bash' \
     '    mkdir -p /home/claude/.gnupg' \
     '    echo "allow-loopback-pinentry" >> /home/claude/.gnupg/gpg-agent.conf 2>/dev/null || true' \
     '    echo "pinentry-mode loopback" >> /home/claude/.gnupg/gpg.conf 2>/dev/null || true' \
-    '    chown -R claude:claude /home/claude/.gnupg' \
+    '    chown -R claude:claude /home/claude/.gnupg 2>/dev/null || true' \
     '    chmod 700 /home/claude/.gnupg' \
     '    chmod 600 /home/claude/.gnupg/*.conf 2>/dev/null || true' \
     'fi' \

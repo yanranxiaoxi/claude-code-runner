@@ -11,6 +11,12 @@
 		"terminal": "Terminal",
 		"changes": "Changes"
 	},
+	"workspaceMode": {
+		"shadow": "Shadow",
+		"direct": "Direct",
+		"shadowTooltip": "Files are copied into an isolated Git shadow workspace.",
+		"directTooltip": "Files are mounted directly from your working directory."
+	},
 	"terminal": {
 		"connectingToContainer": "Connecting to container...",
 		"clear": "Clear",
@@ -43,7 +49,12 @@
 		"fileStatusModified": "Modified",
 		"fileStatusDeleted": "Deleted",
 		"fileStatusAdded": "Added",
-		"fileStatusUnknown": "Status: {{status}}"
+		"fileStatusUnknown": "Status: {{status}}",
+		"directModeNotice": "Direct workspace mode: changes are written directly to {{path}}. This tool does not create snapshots or backups, and commit/push are disabled.",
+		"noChangesDirect": "No changes detected in your working directory.",
+		"changeTrackingUnavailable": "Change tracking unavailable",
+		"changeTrackingUnavailableDescription": "This directory is not a Git repository, or Git is not available. File edits still work in direct mode.",
+		"commitDisabledDirect": "Commit and push are disabled in direct workspace mode."
 	},
 	"status": {
 		"connected": "Connected",

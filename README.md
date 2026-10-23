@@ -80,23 +80,50 @@ claude-run
 
 This will:
 
-1. Create a new branch (`claude/[timestamp]`)
+1. Choose a workspace mode (unless `workspaceMode` is set in config)
 2. Start a Docker container with Claude Code
 3. Launch a web UI at `http://localhost:3456`
 4. Open your browser automatically
 
+> [!IMPORTANT]
+>
+> **Workspace Modes**
+>
+> If `workspaceMode` is not set in `claude-run.config.json`, the CLI asks you to choose:
+>
+> - `shadow` (recommended): files are copied into an isolated Git shadow workspace. Your host directory is not mounted.
+> - `direct`: the current directory is bind-mounted read-write at `/workspace`. Agent edits apply immediately to your host files.
+>
+> The interactive choice is **not written back** to the config file. Set `workspaceMode` explicitly to skip the prompt. When stdin is not a TTY, shadow mode is used with a warning.
+>
+> Direct mode is intentionally restrictive:
+>
+> - Direct mode does not create or switch to a `claude/*` branch; it uses the current host checkout.
+> - Branch/PR options (`--branch`, `--remote-branch`, `--pr`, `targetBranch`, `remoteBranch`, `prNumber`) are rejected.
+> - `.git` is mounted read-only and only read-only Git inspection is allowed. If you initialize Git after the container starts, restart the session so the read-only mount is applied.
+> - The Web UI does not offer commit/push. If the directory is a Git repository and Git is available on the host, the Changes tab still shows read-only file status and diffs; otherwise it reports that change tracking is unavailable.
+> - `setupCommands` require explicit confirmation each run and are skipped without a TTY.
+> - No snapshot or rollback is provided. Commit/stash or back up important work first.
+> - System/home/temp roots are rejected as direct workspaces. This includes `/`, `$HOME`, `/home`, `/tmp`, and on macOS `/System`, `/Library`, `/Users`; on Windows drive roots, `%SystemRoot%`, `%ProgramFiles%`, `%ProgramData%`, and the user home. Subdirectories of those locations are allowed.
+>
+> Direct mode is **not a filesystem sandbox**. The agent has shell access inside the container and the mounted directory is writable. The read-only `.git` mount and Git wrapper are guardrails, not a hard security boundary. Use shadow mode when you need isolation.
+>
+> Rootless Podman uses `keep-id` automatically. Rootless Docker may not map the host UID correctly; a write probe aborts direct mode before the agent starts if the mounted directory is not writable.
+>
+> The read-only Git wrapper is part of the official image. A custom Dockerfile that removes or replaces it will lose that guardrail.
+
 > [!WARNING]
 >
-> **Non-Git Directory Support**
+> **Non-Git Directory Support (Shadow Mode)**
 >
-> If you run `claude-run` in a non-git directory, the tool will prompt you to initialize a git repository. If you agree, it will automatically run `git init`, create an initial commit, and start the container. **Important**: After initialization, you must manually set up a remote repository (e.g., on GitHub) and configure the upstream to save your changes. Use commands like:
+> In `shadow` mode, if you run `claude-run` in a non-git directory, the tool will prompt you to initialize a git repository. If you agree, it will automatically run `git init`, create an initial commit, and start the container. **Important**: After initialization, you must manually set up a remote repository (e.g., on GitHub) and configure the upstream to save your changes. Use commands like:
 >
 > ```bash
 > git remote add origin <your-repo-url>
 > git push -u origin main
 > ```
 >
-> Without setting up the upstream, your changes will only exist locally in the container.
+> Without setting up the upstream, your changes will only exist locally in the container. Direct mode does not require Git and does not initialize a repository.
 
 > [!NOTE]
 >
@@ -320,6 +347,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 	"dockerImage": "claude-code-runner:latest",
 	"buildImage": true,
 	"useNightlyImage": false,
+	"workspaceMode": "shadow",
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
@@ -364,6 +392,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 - `useNightlyImage`: When `buildImage` is `false` and `dockerImage` is not explicitly set, use the `nightly` tag instead of the versioned tag. The nightly image is rebuilt on every push to the main branch and contains the latest versions of all code runners (default: false)
 - `dockerfile`: Path to custom Dockerfile (optional)
 - `detached`: Run container in detached mode
+- `workspaceMode`: `"shadow"` or `"direct"` (omit to be asked at startup; the answer is not persisted)
 - `autoPush`: Automatically push branches after commits
 - `autoCreatePR`: Automatically create pull requests
 - `autoStartClaude`: Start Claude Code automatically (default: true)

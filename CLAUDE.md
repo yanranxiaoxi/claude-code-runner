@@ -60,8 +60,13 @@ This is the Claude Code Runner project - a CLI tool that runs Claude Code instan
 - Claude runs with `--dangerously-skip-permissions` flag (safe within container isolation)
 - Git wrapper prevents branch switching to protect main branch
 - All credentials are mounted read-only
-- Each session creates a new branch (`claude/[timestamp]`)
+- Each session creates a new branch (`claude/[timestamp]`) in shadow mode
 - Real-time commit monitoring with interactive review
+- Workspace modes:
+  - `shadow` (default/recommended): copy Git-tracked files into the container, sync changes through a shadow repository
+  - `direct`: bind-mount the current directory read-write; `.git` is mounted read-only, only read-only Git inspection is allowed, branch/PR options are rejected, and the Web UI has no commit/push
+- `workspaceMode` is resolved from config or an interactive prompt. Prompt results are never written back to config.
+- Direct mode hard-rejects system/home/temp roots, requires explicit consent for `setupCommands`, and verifies workspace writability with a probe.
 
 ### Shadow Repository Sync Principles
 

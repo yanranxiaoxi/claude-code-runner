@@ -78,23 +78,50 @@ claude-run
 
 这将：
 
-1. 创建一个新分支 (`claude/[timestamp]`)
+1. 选择工作区模式（或使用配置中的 `workspaceMode`）
 2. 启动一个包含 Claude Code 的 Docker 容器
 3. 在 `http://localhost:3456` 上启动 Web UI
 4. 自动打开浏览器
 
+> [!IMPORTANT]
+>
+> **工作区模式**
+>
+> 如果 `claude-run.config.json` 中没有设置 `workspaceMode`，CLI 会询问：
+>
+> - `shadow`（推荐）：文件复制到隔离的 Git shadow 工作区，宿主机目录不会被挂载。
+> - `direct`：当前目录以读写方式挂载到 `/workspace`，agent 的修改会立即写入宿主机文件。
+>
+> 交互选择 **不会写回** 配置文件。显式设置 `workspaceMode` 可跳过询问。stdin 不是 TTY 时默认使用 shadow 模式并打印警告。
+>
+> direct 模式有意限制以下行为：
+>
+> - direct 模式不会创建或切换到 `claude/*` 分支，而是使用宿主机当前 checkout。
+> - 禁止分支/PR 参数（`--branch`、`--remote-branch`、`--pr`、`targetBranch`、`remoteBranch`、`prNumber`）。
+> - `.git` 以只读方式挂载，Git 只允许只读查询。如果在容器启动后才初始化 Git，请重启会话以应用只读挂载。
+> - Web UI 不提供提交/推送。如果目录是 Git 仓库且宿主机安装了 Git，Changes 页仍会显示只读的文件状态和 diff；否则会提示变更追踪不可用。
+> - `setupCommands` 每次启动都需要明确确认；无 TTY 时跳过。
+> - 不提供快照或回滚，请先提交/stash 或备份重要工作。
+> - 拒绝把系统根目录、用户主目录、共享临时目录等危险路径作为 direct 工作区。包括 `/`、`$HOME`、`/home`、`/tmp`，macOS 的 `/System`、`/Library`、`/Users`，以及 Windows 的盘符根目录、`%SystemRoot%`、`%ProgramFiles%`、`%ProgramData%` 和用户主目录。这些位置的子目录可以正常使用。
+>
+> direct 模式 **不是文件系统沙箱**。容器内的 agent 拥有 shell，挂载目录可写。只读 `.git` 挂载和 Git wrapper 只是保护措施，不是硬性安全边界。需要隔离时请使用 shadow 模式。
+>
+> Rootless Podman 会自动使用 `keep-id`。Rootless Docker 可能无法正确映射宿主机 UID；如果挂载目录不可写，写入探针会在 agent 启动前中止 direct 模式。
+>
+> 只读 Git wrapper 是官方镜像的一部分。如果自定义 Dockerfile 移除或替换了它，这层保护将失效。
+
 > [!WARNING]
 >
-> **非 Git 目录支持**
+> **非 Git 目录支持（Shadow 模式）**
 >
-> 如果你在非 Git 目录中运行 `claude-run`，工具会提示你初始化 Git 仓库。如果你同意，它会自动运行 `git init`，创建初始提交，并启动容器。**重要**：初始化后，你必须手动设置远程仓库（例如在 GitHub 上）并配置上游以保存更改。使用如下命令：
+> 在 `shadow` 模式下，如果你在非 Git 目录中运行 `claude-run`，工具会提示你初始化 Git 仓库。如果你同意，它会自动运行 `git init`，创建初始提交，并启动容器。**重要**：初始化后，你必须手动设置远程仓库（例如在 GitHub 上）并配置上游以保存更改。使用如下命令：
 >
 > ```bash
 > git remote add origin <你的仓库 URL>
 > git push -u origin main
 > ```
 >
-> 如果不设置上游，你的更改将仅存在于容器内的本地。
+> 如果不设置上游，你的更改将仅存在于容器内的本地。direct 模式不要求 Git，也不会自动初始化仓库。
 
 > [!NOTE]
 >
@@ -341,6 +368,7 @@ claude-run update        # 别名
 	"dockerImage": "claude-code-runner:latest",
 	"buildImage": true,
 	"useNightlyImage": false,
+	"workspaceMode": "shadow",
 	"dockerfile": "./custom.Dockerfile",
 	"detached": false,
 	"autoPush": true,
@@ -385,6 +413,7 @@ claude-run update        # 别名
 - `useNightlyImage`: 当 `buildImage` 为 `false` 且 `dockerImage` 未显式设置时，使用 `nightly` 标签替代版本标签。nightly 镜像在每次推送到主分支时重新构建，包含所有代码运行器的最新版本（默认：false）
 - `dockerfile`: 自定义 Dockerfile 的路径（可选）
 - `detached`: 在分离模式下运行容器
+- `workspaceMode`: `"shadow"` 或 `"direct"`（省略则在启动时询问，询问结果不写回配置）
 - `autoPush`: 提交后自动推送分支
 - `autoCreatePR`: 自动创建拉取请求
 - `autoStartClaude`: 自动启动 Claude Code (默认: true)

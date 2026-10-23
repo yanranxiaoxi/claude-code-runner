@@ -1,6 +1,14 @@
 // Supported code runners
 export type CodeRunner = 'claude' | 'opencode' | 'codex' | 'kimi' | 'qwen';
 
+// How the host workspace is exposed to the container
+export const WORKSPACE_MODES = ['shadow', 'direct'] as const;
+export type WorkspaceMode = (typeof WORKSPACE_MODES)[number];
+
+export function isWorkspaceMode(value: unknown): value is WorkspaceMode {
+	return value === 'shadow' || value === 'direct';
+}
+
 // Code runner configuration
 export interface CodeRunnerConfig {
 	name: string;
@@ -98,6 +106,7 @@ export interface SandboxConfig {
 	maxThinkingTokens?: number;
 	bashTimeout?: number;
 	includeUntracked?: boolean;
+	workspaceMode?: WorkspaceMode; // Undefined means: ask the user when starting a new container
 	targetBranch?: string;
 	remoteBranch?: string;
 	prNumber?: string;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import type { CodeRunner } from './types';
+import type { CodeRunner, SandboxConfig } from './types';
 import { execSync } from 'node:child_process';
 import https from 'node:https';
 import path from 'node:path';
@@ -116,6 +116,27 @@ async function ensureDockerConfig() {
 	}
 }
 
+async function runSandbox(config: SandboxConfig): Promise<void> {
+	const sandbox = new ClaudeSandbox(config);
+	try {
+		await sandbox.run();
+	}
+	catch (error: any) {
+		console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+		process.exit(1);
+	}
+}
+
+async function loadConfigOrExit(configPath: string): Promise<SandboxConfig> {
+	try {
+		return await loadConfig(configPath);
+	}
+	catch (error: any) {
+		console.error(chalk.red(`Error: ${error instanceof Error ? error.message : String(error)}`));
+		process.exit(1);
+	}
+}
+
 // Helper function to get Claude Runner containers
 async function getClaudeSandboxContainers(containerPrefixes?: Set<string>) {
 	const containers = await docker.listContainers({ all: true });
@@ -229,7 +250,7 @@ program
 		const cliRunner = validateCodeRunner(options.runner);
 		const commandRunner = getRunnerFromCommandName();
 
-		const config = await loadConfig('./claude-run.config.json');
+		const config = await loadConfigOrExit('./claude-run.config.json');
 		config.includeUntracked = false;
 
 		// Apply runner priority: CLI > command name > config file
@@ -244,8 +265,7 @@ program
 		const runnerConfig = CODE_RUNNERS[finalRunner];
 		console.log(chalk.blue(`🚀 Starting ${runnerConfig.displayName} Runner...`));
 
-		const sandbox = new ClaudeSandbox(config);
-		await sandbox.run();
+		await runSandbox(config);
 	});
 
 // Start command - explicitly start a new container
@@ -258,21 +278,21 @@ program
 		'./claude-run.config.json',
 	)
 	.option('-n, --name <name>', 'Container name prefix')
-	.option('--no-push', 'Disable automatic branch pushing')
-	.option('--no-create-pr', 'Disable automatic PR creation')
+	.option('--no-push', 'Disable automatic branch pushing (no effect in direct mode)')
+	.option('--no-create-pr', 'Disable automatic PR creation (no effect in direct mode)')
 	.option(
 		'--include-untracked',
-		'Include untracked files when copying to container',
+		'Include untracked files when copying to container (shadow mode only; ignored in direct mode)',
 	)
 	.option(
 		'-b, --branch <branch>',
-		'Switch to specific branch on container start (creates if doesn\'t exist)',
+		'Switch to specific branch on container start (shadow mode only; rejected in direct mode)',
 	)
 	.option(
 		'--remote-branch <branch>',
-		'Checkout a remote branch (e.g., origin/feature-branch)',
+		'Checkout a remote branch (shadow mode only; rejected in direct mode)',
 	)
-	.option('--pr <number>', 'Checkout a specific PR by number')
+	.option('--pr <number>', 'Checkout a specific PR by number (shadow mode only; rejected in direct mode)')
 	.option(
 		'--shell <shell>',
 		'Start with \'claude\', \'opencode\', \'codex\', \'kimi\', \'qwen\', or \'bash\' shell',
@@ -292,7 +312,7 @@ program
 		const cliRunner = validateCodeRunner(options.runner);
 		const commandRunner = getRunnerFromCommandName();
 
-		const config = await loadConfig(options.config);
+		const config = await loadConfigOrExit(options.config);
 		config.containerPrefix = options.name || config.containerPrefix;
 		config.autoPush = options.push !== false;
 		config.autoCreatePR = options.createPr !== false;
@@ -313,8 +333,7 @@ program
 		const runnerConfig = CODE_RUNNERS[finalRunner];
 		console.log(chalk.blue(`🚀 Starting new ${runnerConfig.displayName} Runner container...`));
 
-		const sandbox = new ClaudeSandbox(config);
-		await sandbox.run();
+		await runSandbox(config);
 	});
 
 // Attach command - attach to existing container
@@ -342,8 +361,26 @@ program
 
 			spinner.text = 'Launching web UI...';
 
+			// Resolve workspace mode/workdir from the container labels so attach
+			// shows the correct branch and change-tracking behavior.
+			let workDir = process.cwd();
+			let workspaceMode: 'shadow' | 'direct' = 'shadow';
+			let nonGitInit = false;
+			try {
+				const info = await docker.getContainer(targetContainerId).inspect();
+				const labels = info.Config.Labels || {};
+				workDir = labels['com.claude.runner.workdir'] || workDir;
+				workspaceMode = labels['com.claude.runner.mode'] === 'direct' ? 'direct' : 'shadow';
+				nonGitInit = labels['com.claude.runner.non-git-init'] === 'true';
+			}
+			catch {
+				// Keep defaults if the container cannot be inspected.
+			}
+
 			// Always launch web UI
 			const webServer = new WebUIServer(docker, containerRuntime);
+			webServer.setRepoInfo(workDir, '', workspaceMode);
+			webServer.setNonGitInit(nonGitInit);
 			const url = await webServer.start();
 			const fullUrl = `${url}?container=${targetContainerId}`;
 
