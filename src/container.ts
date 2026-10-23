@@ -1032,7 +1032,7 @@ export class ContainerManager {
 								AttachStdout: false,
 								AttachStderr: false,
 							})
-							.then(exec => exec.start({}));
+							.then(exec => exec.start({ Detach: true }));
 
 						console.log(
 							chalk.green('✓ Claude Keychain credentials copied to container'),
@@ -1095,7 +1095,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 			}
 
 			// Copy .claude directory if it exists (but skip if we already copied from Keychain)
@@ -1137,7 +1137,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 			}
 
 			console.log(chalk.green('✓ Claude configuration copied successfully'));
@@ -1286,7 +1286,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 
 				console.log(chalk.green('✓ OpenCode configuration copied successfully'));
 			}
@@ -1335,7 +1335,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 
 				console.log(chalk.green('✓ Codex configuration copied successfully'));
 			}
@@ -1384,7 +1384,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 
 				console.log(chalk.green('✓ Kimi Code configuration copied successfully'));
 			}
@@ -1433,7 +1433,7 @@ export class ContainerManager {
 						AttachStdout: false,
 						AttachStderr: false,
 					})
-					.then(exec => exec.start({}));
+					.then(exec => exec.start({ Detach: true }));
 
 				console.log(chalk.green('✓ Qwen Code configuration copied successfully'));
 			}

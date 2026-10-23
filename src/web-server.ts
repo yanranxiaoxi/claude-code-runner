@@ -296,6 +296,22 @@ export class WebUIServer {
 		};
 	}
 
+	private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+		let timer: NodeJS.Timeout | undefined;
+		const timeout = new Promise<never>((_, reject) => {
+			timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+		});
+
+		try {
+			return await Promise.race([promise, timeout]);
+		}
+		finally {
+			if (timer) {
+				clearTimeout(timer);
+			}
+		}
+	}
+
 	private setupSocketHandlers(): void {
 		this.io.on('connection', (socket) => {
 			console.log(chalk.blue('✓ Client connected to web UI'));
@@ -333,21 +349,30 @@ export class WebUIServer {
 					if (!session || !session.stream) {
 						// No existing session, create a new one
 						console.log(chalk.blue('Creating new Claude session...'));
-						const exec = await container.exec({
-							AttachStdin: true,
-							AttachStdout: true,
-							AttachStderr: true,
-							Tty: true,
-							Cmd: ['/home/claude/start-session.sh'],
-							WorkingDir: '/workspace',
-							User: 'claude',
-							Env: ['TERM=xterm-256color', 'COLORTERM=truecolor'],
-						});
+						const exec = await this.withTimeout(
+							container.exec({
+								AttachStdin: true,
+								AttachStdout: true,
+								AttachStderr: true,
+								Tty: true,
+								Cmd: ['/home/claude/start-session.sh'],
+								WorkingDir: '/workspace',
+								User: 'claude',
+								Env: ['TERM=xterm-256color', 'COLORTERM=truecolor'],
+							}),
+							15000,
+							'Timed out creating the container session.',
+						);
 
-						const stream = await exec.start({
-							hijack: true,
-							stdin: true,
-						});
+						console.log(chalk.gray('  Starting container session process...'));
+						const stream = await this.withTimeout(
+							exec.start({
+								hijack: true,
+								stdin: true,
+							}),
+							15000,
+							'Timed out starting the container session.',
+						);
 
 						session = {
 							containerId,
@@ -427,16 +452,22 @@ export class WebUIServer {
 							this.stopContinuousMonitoring(containerId);
 							// Clean up session and shadow repo
 							this.sessions.delete(containerId);
-							if (this.shadowRepos.has(containerId)) {
-								this.shadowRepos.get(containerId)?.cleanup();
+							const shadowRepo = this.shadowRepos.get(containerId);
+							if (shadowRepo) {
+								void shadowRepo.cleanup().catch((error) => {
+									console.error(chalk.yellow('Failed to clean up shadow repository:'), error);
+								});
 								this.shadowRepos.delete(containerId);
 							}
 						});
 
 						console.log(chalk.green('New Claude session started'));
 
-						// Start continuous monitoring for this container
-						this.startContinuousMonitoring(containerId);
+						// Start continuous monitoring for this container. Monitoring
+						// failures must not crash the whole web server/CLI process.
+						void this.startContinuousMonitoring(containerId).catch((error) => {
+							console.error(chalk.red('[MONITOR] Failed to start monitoring:'), error);
+						});
 					}
 					else {
 						// Add this socket to the existing session
@@ -1135,7 +1166,7 @@ export class WebUIServer {
 		const monitor = this.fileWatchers.get(containerId);
 		if (monitor) {
 			if (monitor.watcher) {
-				void monitor.watcher.close();
+				void monitor.watcher.close().catch(() => {});
 			}
 			// If it's an inotify monitor, close the stream
 			else if (monitor.stream) {

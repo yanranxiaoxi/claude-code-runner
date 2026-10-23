@@ -10,6 +10,7 @@ let containerId;
 let workspaceMode = 'shadow';
 let workspacePath = '';
 let changeTrackingAvailable = true;
+let attachTimeout = null;
 
 // Input detection state
 let isWaitingForInput = false;
@@ -412,6 +413,7 @@ function initSocket() {
 				cols: term.cols,
 				rows: term.rows,
 			});
+			startAttachTimeout();
 		}
 		else {
 			// No container ID in URL, fetch available containers
@@ -420,6 +422,7 @@ function initSocket() {
 	});
 
 	socket.on('attached', (data) => {
+		clearAttachTimeout();
 		console.log('Attached to container:', data.containerId);
 		containerId = data.containerId;
 		workspaceMode = data.workspaceMode || 'shadow';
@@ -498,6 +501,7 @@ function initSocket() {
 	});
 
 	socket.on('disconnect', () => {
+		clearAttachTimeout();
 		updateStatus('error', 'Disconnected from server');
 		term.writeln(
 			'\r\n\x1B[1;31mServer connection lost. Click "Reconnect" to retry.\x1B[0m',
@@ -517,6 +521,7 @@ function initSocket() {
 	});
 
 	socket.on('container-disconnected', () => {
+		clearAttachTimeout();
 		updateStatus('error', 'Container disconnected');
 		term.writeln(
 			'\r\n\x1B[1;31mContainer connection lost. Click "Reconnect" to retry.\x1B[0m',
@@ -582,6 +587,7 @@ function initSocket() {
 
 	// Add general error handler
 	socket.on('error', (error) => {
+		clearAttachTimeout();
 		console.error('[SOCKET] Socket error:', error);
 
 		// Handle container not found error gracefully
@@ -605,6 +611,7 @@ function initSocket() {
 
 	// Container error handler (keeping this for backward compatibility)
 	socket.on('container-error', (error) => {
+		clearAttachTimeout();
 		console.error('[CONTAINER] Container error:', error);
 		updateStatus('error', `Error: ${error.message}`);
 		if (term && term.writeln) {
@@ -637,6 +644,7 @@ async function fetchContainerList() {
 				cols: term.cols,
 				rows: term.rows,
 			});
+			startAttachTimeout();
 		}
 		else {
 			updateStatus('error', t('status.noContainersFound', 'No containers found'));
@@ -700,6 +708,26 @@ function clearTerminal() {
 	term.clear();
 }
 
+function clearAttachTimeout() {
+	if (attachTimeout) {
+		clearTimeout(attachTimeout);
+		attachTimeout = null;
+	}
+}
+
+function startAttachTimeout() {
+	clearAttachTimeout();
+	attachTimeout = setTimeout(() => {
+		attachTimeout = null;
+		updateStatus('error', t('messages.attachTimeout', 'Attach timed out'));
+		if (term) {
+			term.writeln('');
+			term.writeln('\x1B[1;31m⚠ Attach timed out.\x1B[0m');
+			term.writeln(`\x1B[90m${t('messages.attachTimeoutHint', 'Click Reconnect or refresh the page. If it keeps failing, check the claude-run terminal for errors.')}\x1B[0m`);
+		}
+	}, 35000);
+}
+
 function reconnect() {
 	if (socket && containerId) {
 		// Don't clear terminal - preserve existing content
@@ -712,6 +740,7 @@ function reconnect() {
 			cols: term.cols,
 			rows: term.rows,
 		});
+		startAttachTimeout();
 	}
 }
 

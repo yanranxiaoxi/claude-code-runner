@@ -83,6 +83,8 @@
 		"connectionError": "连接错误",
 		"serverConnectionLost": "与服务器的连接已断开。点击「重新连接」重试。",
 		"containerConnectionLost": "与容器的连接已断开。点击「重新连接」重试。",
+		"attachTimeout": "连接容器超时",
+		"attachTimeoutHint": "请点击「重新连接」或刷新页面。如果持续失败，请查看 claude-run 终端中的错误信息。",
 		"inputNeeded": "需要输入"
 	},
 	"language": {
