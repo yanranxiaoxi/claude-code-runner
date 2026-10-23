@@ -33,7 +33,7 @@ RUN dnf install -y epel-release \
 # Layer 2: Install all code runner tools (npm/pip/curl) in a single layer
 RUN curl -fsSL https://claude.ai/install.sh | bash \
     && npm install -g \
-        opencode-ai@latest \
+        @opencode/cli@latest \
         oh-my-opencode@latest \
         @openai/codex@latest \
         @qwen-code/qwen-code@latest \
