@@ -8,6 +8,7 @@ import path from 'node:path';
 import process from 'node:process';
 import chalk from 'chalk';
 import tarStream from 'tar-stream';
+import { resolveDockerImage } from './image-name';
 import { CODE_RUNNERS } from './types';
 import { getHostIdentity } from './workspace';
 
@@ -175,20 +176,7 @@ export class ContainerManager {
 	}
 
 	private async ensureImage(): Promise<void> {
-		let imageName = this.config.dockerImage || 'claude-code-runner:latest';
-
-		// Auto-add version tag if image name doesn't include a tag
-		// When buildImage is false (using pre-built image), use the official versioned image
-		if (!imageName.includes(':')) {
-			if (this.config.buildImage === false) {
-				// For pre-built image, append version tag
-				imageName = `${imageName}:v__PACKAGE_VERSION__`;
-			}
-			else {
-				// For local build, append :latest
-				imageName = `${imageName}:latest`;
-			}
-		}
+		const imageName = resolveDockerImage(this.config);
 
 		// Check if image already exists
 		try {
@@ -404,7 +392,7 @@ export class ContainerManager {
 
 		// Create container
 		const container = await this.docker.createContainer({
-			Image: this.config.dockerImage || 'claude-code-runner:latest',
+			Image: resolveDockerImage(this.config),
 			name: `${
 				this.config.containerPrefix || 'claude-code-runner'
 			}-${Date.now()}`,

@@ -145,7 +145,7 @@ This will:
 >
 > The Docker image bundles Claude Code, OpenCode, Codex, Kimi Code, and Qwen Code. These tools update frequently. To stay current without waiting for a new CLI release, you have two options:
 >
-> 1. **Use the nightly tag** — Set `buildImage: false` and `useNightlyImage: true` in your config. This pulls `ghcr.io/yanranxiaoxi/claude-code-runner:nightly`, which is rebuilt on every push to the main branch.
+> 1. **Use the nightly tag** — Set `buildImage: false` and `useNightlyImage: true` in your config. If `dockerImage` has no explicit tag, the tool appends `:nightly` (for the default image this is `ghcr.io/yanranxiaoxi/claude-code-runner:nightly`; for a custom `dockerImage`, the same tag is used on that image). The nightly image is rebuilt on every push to the main branch.
 > 2. **Build locally** — Set `buildImage: true` (the default). This builds from the latest Dockerfile whenever the image is not already cached.
 >
 > ```json
@@ -389,7 +389,7 @@ Create a `claude-run.config.json` file (see `claude-run.config.example.json` for
 
 - `dockerImage`: Base Docker image to use (default: `claude-code-runner:latest`; when `buildImage` is `false`, defaults to the official image with a version tag matching the CLI version, e.g., `ghcr.io/yanranxiaoxi/claude-code-runner:v0.3.2`)
 - `buildImage`: Build the image locally (default: true) or pull from registry (set to false)
-- `useNightlyImage`: When `buildImage` is `false` and `dockerImage` is not explicitly set, use the `nightly` tag instead of the versioned tag. The nightly image is rebuilt on every push to the main branch and contains the latest versions of all code runners (default: false)
+- `useNightlyImage`: When `buildImage` is `false` and `dockerImage` has no explicit tag, use the `nightly` tag instead of the versioned tag. This applies to both the official image and a custom `dockerImage` such as a private registry. The nightly image is rebuilt on every push to the main branch and contains the latest versions of all code runners (default: false)
 - `dockerfile`: Path to custom Dockerfile (optional)
 - `detached`: Run container in detached mode
 - `workspaceMode`: `"shadow"` or `"direct"` (omit to be asked at startup; the answer is not persisted)

@@ -7,7 +7,7 @@ import { isWorkspaceMode } from './types';
 const DEFAULT_CONFIG: SandboxConfig = {
 	dockerImage: 'claude-code-runner',
 	buildImage: true, // Build locally by default, set to false to pull from registry
-	useNightlyImage: false, // When buildImage is false and dockerImage not set, use nightly tag instead of versioned tag
+	useNightlyImage: false, // When buildImage is false and the image has no explicit tag, use nightly instead of the versioned tag
 	autoPush: true,
 	autoCreatePR: true,
 	autoStartClaude: true,
@@ -83,8 +83,9 @@ export async function loadConfig(configPath: string): Promise<SandboxConfig> {
 		finalConfig.defaultShell = finalConfig.codeRunner;
 	}
 
-	// If buildImage is false and dockerImage wasn't explicitly set, use official image
-	// When useNightlyImage is true, use the nightly tag; otherwise use the versioned tag
+	// If buildImage is false and dockerImage wasn't explicitly set, use the
+	// official image. When useNightlyImage is true, use the nightly tag;
+	// otherwise use the versioned tag.
 	if (finalConfig.buildImage === false && userConfig.dockerImage === undefined) {
 		if (finalConfig.useNightlyImage) {
 			finalConfig.dockerImage = 'ghcr.io/yanranxiaoxi/claude-code-runner:nightly';
