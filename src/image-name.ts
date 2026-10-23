@@ -15,6 +15,21 @@ export function hasExplicitImageTag(image: string): boolean {
 }
 
 /**
+ * Strip an image tag or digest and return the repository name. Registry ports
+ * (e.g. localhost:5000/project) are preserved.
+ */
+export function getImageBaseName(image: string): string {
+	const digestIndex = image.indexOf('@');
+	if (digestIndex !== -1) {
+		return image.slice(0, digestIndex);
+	}
+
+	const lastSlash = image.lastIndexOf('/');
+	const lastColon = image.lastIndexOf(':');
+	return lastColon > lastSlash ? image.slice(0, lastColon) : image;
+}
+
+/**
  * Resolve the image reference used for both pulling/building and container
  * creation. Keeping this in one place prevents the pulled tag and the container
  * image tag from diverging.

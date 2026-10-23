@@ -11,6 +11,7 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import { loadConfig } from './config';
 import { getContainerRuntimeCmd, getDockerConfig, isPodman } from './docker-config';
+import { getImageBaseName, resolveDockerImage } from './image-name';
 import { ClaudeSandbox } from './index';
 import { CODE_RUNNERS } from './types';
 import { WebUIServer } from './web-server';
@@ -620,11 +621,16 @@ program
 				containerPrefixes.add(config.containerPrefix);
 			}
 
-			// Extract base image name (without tag)
-			if (config.dockerImage) {
-				const baseImage = config.dockerImage.split(':')[0];
-				baseImageNames.add(baseImage);
-				imageNames.add(config.dockerImage);
+			// Resolve the image exactly as the start command does so the keep
+			// prompt preserves the tag that is actually in use (nightly,
+			// versioned, latest, or an explicit tag).
+			const configuredImage = config.dockerImage
+				? resolveDockerImage(config)
+				: undefined;
+
+			if (configuredImage) {
+				baseImageNames.add(getImageBaseName(configuredImage));
+				imageNames.add(configuredImage);
 			}
 
 			// Always include defaults
@@ -689,12 +695,12 @@ program
 
 			// Ask if user wants to keep the configured image
 			let keepConfiguredImage = false;
-			if (config.dockerImage && !options.yes) {
+			if (configuredImage && !options.yes) {
 				const { keep } = await inquirer.prompt([
 					{
 						type: 'confirm',
 						name: 'keep',
-						message: `Do you want to keep the configured image (${config.dockerImage})?`,
+						message: `Do you want to keep the configured image (${configuredImage})?`,
 						default: true,
 					},
 				]);
@@ -702,17 +708,9 @@ program
 			}
 
 			const imagesToRemove = new Set(imageNames);
-			if (keepConfiguredImage && config.dockerImage) {
-				// If configured image has no tag, also preserve the versioned tag
-				if (!config.dockerImage.includes(':')) {
-					const versionedImage = `${config.dockerImage}:v__PACKAGE_VERSION__`;
-					imagesToRemove.delete(versionedImage);
-					console.log(chalk.green(`✓ Will keep configured image version: ${versionedImage}`));
-				}
-				else {
-					imagesToRemove.delete(config.dockerImage);
-					console.log(chalk.green(`✓ Will keep configured image: ${config.dockerImage}`));
-				}
+			if (keepConfiguredImage && configuredImage) {
+				imagesToRemove.delete(configuredImage);
+				console.log(chalk.green(`✓ Will keep configured image: ${configuredImage}`));
 			}
 
 			// Confirm unless -y flag is used
